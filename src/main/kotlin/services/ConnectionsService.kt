@@ -1,0 +1,60 @@
+package services
+
+import com.squareup.moshi.Types
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import models.Connection
+import util.ErrorHelper
+import util.JsonHelper
+import util.execute
+import java.util.prefs.Preferences
+
+object ConnectionsService {
+    private const val KEY_CONNECTIONS = "connections"
+
+    private val preferences = Preferences.userRoot().node("connections")
+    private val connectionListAdapter = JsonHelper.moshi.adapter<List<Connection>>(Types.newParameterizedType(List::class.java, Connection::class.java))
+
+    var mainConnectionsObserver: ((connections: List<Connection>) -> Unit)? = null
+
+    var connections: List<Connection>
+        get() {
+            val json = preferences.get(KEY_CONNECTIONS, "[]")
+            return connectionListAdapter.fromJson(json)?.sortedBy { it.name.toLowerCase() } ?: emptyList()
+        }
+        set(value) {
+            val json = connectionListAdapter.toJson(value)
+            preferences.put(KEY_CONNECTIONS, json)
+        }
+
+    fun connect(connection: Connection) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val result = execute(SettingsService.adbPath, listOf("connect", connection.address))
+                if (!Regex("(already )?connected to .*").matches(result)) {
+                    throw Throwable(result)
+                }
+            } catch (t: Throwable) {
+                ErrorHelper.handleThrowable(t)
+            } finally {
+                DevicesService.refreshDevices()
+            }
+        }
+    }
+
+    fun disconnect(connection: Connection) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val result = execute(SettingsService.adbPath, listOf("disconnect", connection.address))
+                if (!Regex("disconnected .*").matches(result) && !Regex("error: no such device '.*'").matches(result)) {
+                    throw Throwable(result)
+                }
+            } catch (t: Throwable) {
+                ErrorHelper.handleThrowable(t)
+            } finally {
+                DevicesService.refreshDevices()
+            }
+        }
+    }
+}

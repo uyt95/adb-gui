@@ -1,0 +1,31 @@
+package services
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import models.Device
+import util.ErrorHelper
+import util.execute
+
+object DevicesService {
+    var mainDevicesObserver: ((devices: List<Device>) -> Unit)? = null
+
+    fun refreshDevices() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val devices = execute(SettingsService.adbPath, listOf("devices")).split("\n")
+                    .map { line -> line.split(Regex("\\s+")) }
+                    .filter { tokens -> tokens.size == 2 }
+                    .map { row ->
+                        val idParts = row[0].split(':')
+                        val address = if (idParts.size == 2) idParts[0] else row[0]
+                        Device(address, row[1])
+                    }
+                mainDevicesObserver?.invoke(devices)
+            } catch (t: Throwable) {
+                ErrorHelper.handleThrowable(t)
+                mainDevicesObserver?.invoke(emptyList())
+            }
+        }
+    }
+}
