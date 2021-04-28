@@ -44,6 +44,13 @@ object ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
             listOf(
                 TableColumn("Name") { Text(text = it.name) },
                 TableColumn("Address") { Text(text = it.address) },
+                TableColumn("Status", contentAlignment = Alignment.Center) {
+                    if (devices.any { device -> device.address == it.address }) {
+                        Image(imageVector = vectorXmlResource("icons/outline_check_24.xml"), contentDescription = "connected")
+                    } else {
+                        Image(imageVector = vectorXmlResource("icons/outline_close_24.xml"), contentDescription = "disconnected")
+                    }
+                },
                 TableColumn("Actions", contentAlignment = Alignment.Center) {
                     Row {
                         Button(modifier = Modifier.padding(end = 4.dp), onClick = {
