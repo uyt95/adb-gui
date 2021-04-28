@@ -26,7 +26,9 @@ object ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
     @Composable
     override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
         val scope = rememberCoroutineScope()
-        val showDialog = remember { mutableStateOf(false) }
+        val showAddDialog = remember { mutableStateOf(false) }
+        val showEditDialog = remember { mutableStateOf(false) }
+        val editDialogConnection: MutableState<Connection?> = remember { mutableStateOf(null) }
         var connections: List<Connection> by remember { mutableStateOf(emptyList()) }
         LaunchedEffect(connections) {
             connections = ConnectionsService.connections
@@ -34,7 +36,7 @@ object ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
 
         fab?.onClick = {
             scope.launch {
-                showDialog.value = true
+                showAddDialog.value = true
             }
         }
 
@@ -44,14 +46,20 @@ object ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                 TableColumn("Address") { Text(text = it.address) },
                 TableColumn("Actions", contentAlignment = Alignment.Center) {
                     Row {
+                        Button(modifier = Modifier.padding(end = 4.dp), onClick = {
+                            scope.launch {
+                                editDialogConnection.value = it
+                                showEditDialog.value = true
+                            }
+                        }) { Image(imageVector = vectorXmlResource("icons/outline_edit_24.xml"), contentDescription = "edit") }
                         if (devices.any { device -> device.address == it.address }) {
-                            Button(modifier = Modifier.padding(end = 8.dp), onClick = {
+                            Button(modifier = Modifier.padding(end = 4.dp), onClick = {
                                 scope.launch {
                                     ConnectionsService.disconnect(it)
                                 }
                             }) { Image(imageVector = vectorXmlResource("icons/outline_link_off_24.xml"), contentDescription = "disconnect") }
                         } else {
-                            Button(modifier = Modifier.padding(end = 8.dp), onClick = {
+                            Button(modifier = Modifier.padding(end = 4.dp), onClick = {
                                 scope.launch {
                                     ConnectionsService.connect(it)
                                 }
@@ -71,60 +79,106 @@ object ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
             connections
         )
 
-        dialog(show = showDialog, scope = scope, title = "Add connection", content = {
-            val name = remember { mutableStateOf("") }
-            val address = remember { mutableStateOf("") }
-            val nameFocusRequester = remember { FocusRequester() }
-            val addressFocusRequester = remember { FocusRequester() }
+        dialog(show = showAddDialog, scope = scope, title = "Add connection", content = {
+            renderEditConnectionDialogContent(
+                scope = scope,
+                connection = null,
+                onSave = { _, name, address ->
+                    scope.launch {
+                        val newConnections = connections.toMutableList()
+                        newConnections.add(Connection(name, address))
+                        ConnectionsService.connections = newConnections
+                        connections = ConnectionsService.connections
 
-            DisposableEffect(true) {
-                nameFocusRequester.requestFocus()
-                onDispose { }
-            }
-
-            Column {
-                TextField(
-                    label = { Text("Name") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).focusOrder(nameFocusRequester) { addressFocusRequester.requestFocus() },
-                    singleLine = true,
-                    value = name.value,
-                    onValueChange = {
-                        name.value = it.trim()
+                        showAddDialog.value = false
+                        AppManager.focusedWindow?.close()
                     }
-                )
-                TextField(
-                    label = { Text("Address") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).focusOrder(addressFocusRequester),
-                    singleLine = true,
-                    value = address.value,
-                    onValueChange = {
-                        address.value = it.trim()
+                },
+                onDismiss = {
+                    scope.launch {
+                        showAddDialog.value = false
+                        AppManager.focusedWindow?.close()
                     }
-                )
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                    Row {
-                        Button(modifier = Modifier.padding(end = 8.dp), enabled = name.value.isNotEmpty() && address.value.isNotEmpty(), onClick = {
-                            val newConnections = connections.toMutableList()
-                            newConnections.add(Connection(name.value, address.value))
-                            ConnectionsService.connections = newConnections
-                            connections = ConnectionsService.connections
+                }
+            )
+        })
 
-                            showDialog.value = false
-                            AppManager.focusedWindow?.close()
-                        }) {
+        dialog(show = showEditDialog, scope = scope, title = "Edit connection", content = {
+            renderEditConnectionDialogContent(
+                scope = scope,
+                connection = editDialogConnection.value,
+                onSave = { connection, name, address ->
+                    scope.launch {
+                        val newConnections = connections.toMutableList()
+                        newConnections.remove(connection)
+                        newConnections.add(Connection(name, address))
+                        ConnectionsService.connections = newConnections
+                        connections = ConnectionsService.connections
+                    }
+                },
+                onDismiss = {
+                    scope.launch {
+                        showEditDialog.value = false
+                        AppManager.focusedWindow?.close()
+                    }
+                }
+            )
+        })
+    }
+
+    @Composable
+    private fun renderEditConnectionDialogContent(
+        scope: CoroutineScope,
+        connection: Connection?,
+        onSave: (connection: Connection?, name: String, address: String) -> Unit,
+        onDismiss: () -> Unit
+    ) {
+        val name = remember { mutableStateOf(connection?.name ?: "") }
+        val address = remember { mutableStateOf(connection?.address ?: "") }
+        val nameFocusRequester = remember { FocusRequester() }
+        val addressFocusRequester = remember { FocusRequester() }
+
+        DisposableEffect(true) {
+            nameFocusRequester.requestFocus()
+            onDispose { }
+        }
+
+        Column {
+            TextField(
+                label = { Text("Name") },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).focusOrder(nameFocusRequester) { addressFocusRequester.requestFocus() },
+                singleLine = true,
+                value = name.value,
+                onValueChange = { name.value = it }
+            )
+            TextField(
+                label = { Text("Address") },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).focusOrder(addressFocusRequester),
+                singleLine = true,
+                value = address.value,
+                onValueChange = { address.value = it }
+            )
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                Row {
+                    Button(modifier = Modifier.padding(end = 8.dp), enabled = name.value.isNotEmpty() && address.value.isNotEmpty(), onClick = {
+                        onSave.invoke(connection, name.value, address.value)
+                        onDismiss.invoke()
+                    }) {
+                        if (connection == null) {
                             Text(text = "Add")
+                        } else {
+                            Text(text = "Save")
                         }
-                        Button(onClick = {
-                            scope.launch {
-                                showDialog.value = false
-                                AppManager.focusedWindow?.close()
-                            }
-                        }) {
-                            Text(text = "Cancel")
+                    }
+                    Button(onClick = {
+                        scope.launch {
+                            onDismiss.invoke()
                         }
+                    }) {
+                        Text(text = "Cancel")
                     }
                 }
             }
-        })
+        }
     }
 }
