@@ -32,7 +32,7 @@ object ConnectionsService {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val result = execute(SettingsService.adbPath, listOf("connect", connection.address))
-                if (!Regex("(already )?connected to .*").matches(result)) {
+                if (!Regex("(already )?connected to .*", RegexOption.MULTILINE).containsMatchIn(result)) {
                     throw Throwable(result)
                 }
             } catch (t: Throwable) {
@@ -47,7 +47,10 @@ object ConnectionsService {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val result = execute(SettingsService.adbPath, listOf("disconnect", connection.address))
-                if (!Regex("disconnected .*").matches(result) && !Regex("error: no such device '.*'").matches(result)) {
+                if (
+                    !Regex("disconnected .*", RegexOption.MULTILINE).containsMatchIn(result) &&
+                    !Regex("error: no such device '.*'", RegexOption.MULTILINE).containsMatchIn(result)
+                ) {
                     throw Throwable(result)
                 }
             } catch (t: Throwable) {
