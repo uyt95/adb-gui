@@ -12,8 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.*
 import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.dp
+import components.Dialog
 import components.Page
-import components.dialog
 import components.table
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -22,7 +22,7 @@ import models.Device
 import models.TableColumn
 import services.ConnectionsService
 
-object ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
+class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
     @Composable
     override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
         val scope = rememberCoroutineScope()
@@ -86,9 +86,8 @@ object ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
             connections
         )
 
-        dialog(show = showAddDialog, scope = scope, title = "Add connection", content = {
+        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add connection", content = {
             renderEditConnectionDialogContent(
-                scope = scope,
                 connection = null,
                 onSave = { _, name, address ->
                     scope.launch {
@@ -110,9 +109,8 @@ object ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
             )
         })
 
-        dialog(show = showEditDialog, scope = scope, title = "Edit connection", content = {
+        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit connection", content = {
             renderEditConnectionDialogContent(
-                scope = scope,
                 connection = editDialogConnection.value,
                 onSave = { connection, name, address ->
                     scope.launch {
@@ -135,7 +133,6 @@ object ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
 
     @Composable
     private fun renderEditConnectionDialogContent(
-        scope: CoroutineScope,
         connection: Connection?,
         onSave: (connection: Connection?, name: String, address: String) -> Unit,
         onDismiss: () -> Unit
@@ -165,27 +162,16 @@ object ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                 value = address.value,
                 onValueChange = { address.value = it }
             )
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                Row {
-                    Button(modifier = Modifier.padding(end = 8.dp), enabled = name.value.isNotEmpty() && address.value.isNotEmpty(), onClick = {
-                        onSave.invoke(connection, name.value, address.value)
-                        onDismiss.invoke()
-                    }) {
-                        if (connection == null) {
-                            Text(text = "Add")
-                        } else {
-                            Text(text = "Save")
-                        }
-                    }
-                    Button(onClick = {
-                        scope.launch {
-                            onDismiss.invoke()
-                        }
-                    }) {
-                        Text(text = "Cancel")
-                    }
-                }
-            }
+            Dialog.renderDialogButtons(
+                confirmText = if (connection == null) "Add" else "Save",
+                confirmEnabled = name.value.isNotEmpty() && address.value.isNotEmpty(),
+                onConfirm = {
+                    onSave.invoke(connection, name.value, address.value)
+                    onDismiss.invoke()
+                },
+                cancelText = "Cancel",
+                onCancel = { onDismiss.invoke() }
+            )
         }
     }
 }
