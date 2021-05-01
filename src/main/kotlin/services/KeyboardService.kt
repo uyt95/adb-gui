@@ -10,7 +10,10 @@ object KeyboardService {
     fun sendBackspaceKey() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                execute(SettingsService.adbPath, listOf("shell", "input", "keyevent", "KEYCODE_DEL"))
+                val response = execute(SettingsService.adbPath, listOf("shell", "input", "keyevent", "KEYCODE_DEL"))
+                if (response.isNotEmpty()) {
+                    throw Throwable(response)
+                }
             } catch (t: Throwable) {
                 ErrorHelper.handleThrowable(t)
             }
@@ -20,7 +23,10 @@ object KeyboardService {
     fun sendTabKey() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                execute(SettingsService.adbPath, listOf("shell", "input", "keyevent", "KEYCODE_TAB"))
+                val response = execute(SettingsService.adbPath, listOf("shell", "input", "keyevent", "KEYCODE_TAB"))
+                if (response.isNotEmpty()) {
+                    throw Throwable(response)
+                }
             } catch (t: Throwable) {
                 ErrorHelper.handleThrowable(t)
             }
@@ -30,7 +36,10 @@ object KeyboardService {
     fun sendText(text: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                execute(SettingsService.adbPath, listOf("shell", "input", "keyboard", "text", "'$text'"))
+                val response = execute(SettingsService.adbPath, listOf("shell", "input", "keyboard", "text", "'$text'"))
+                if (response.isNotEmpty()) {
+                    throw Throwable(response)
+                }
             } catch (t: Throwable) {
                 ErrorHelper.handleThrowable(t)
             }
