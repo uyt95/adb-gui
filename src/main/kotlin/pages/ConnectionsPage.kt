@@ -10,7 +10,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.vectorXmlResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import components.Dialog
 import components.Page
@@ -21,7 +25,9 @@ import models.Connection
 import models.Device
 import models.TableColumn
 import services.ConnectionsService
+import util.IpAddressHelper
 
+@ExperimentalComposeApi
 class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
     @Composable
     override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
@@ -136,6 +142,7 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
     ) {
         val name = remember { mutableStateOf(connection?.name ?: "") }
         val address = remember { mutableStateOf(connection?.address ?: "") }
+        val addressValid = remember { mutableStateOf(false) }
         val nameFocusRequester = remember { FocusRequester() }
         val addressFocusRequester = remember { FocusRequester() }
 
@@ -157,11 +164,18 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).focusOrder(addressFocusRequester),
                 singleLine = true,
                 value = address.value,
-                onValueChange = { address.value = it }
+                onValueChange = {
+                    address.value = it
+                    addressValid.value = IpAddressHelper.validate(it)
+                },
+                isError = !addressValid.value
             )
+            if (!addressValid.value) {
+                Text(text = "Address has to be a valid IP-address", modifier = Modifier.padding(bottom = 8.dp), color = Color.Red, fontSize = TextUnit(10f, TextUnitType.Sp))
+            }
             Dialog.renderDialogButtons(
                 confirmText = if (connection == null) "Add" else "Save",
-                confirmEnabled = name.value.isNotEmpty() && address.value.isNotEmpty(),
+                confirmEnabled = name.value.trim().isNotEmpty() && address.value.trim().isNotEmpty() && addressValid.value,
                 onConfirm = {
                     onSave.invoke(connection, name.value, address.value)
                     onDismiss.invoke()
