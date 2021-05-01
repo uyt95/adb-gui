@@ -23,14 +23,26 @@ class SettingsPage : Page("settings", "Settings") {
             val adbPathState = remember { mutableStateOf(TextFieldValue(SettingsService.adbPath)) }
             val emulatorPathState = remember { mutableStateOf(TextFieldValue(SettingsService.emulatorPath)) }
 
-            TextField(label = { Text("ADB path") }, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), value = adbPathState.value, onValueChange = {
-                adbPathState.value = it
-                SettingsService.adbPath = it.text
-            })
-            TextField(label = { Text("Emulator path") }, modifier = Modifier.fillMaxWidth(), value = emulatorPathState.value, onValueChange = {
-                emulatorPathState.value = it
-                SettingsService.emulatorPath = it.text
-            })
+            TextField(
+                label = { Text("ADB path") },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                singleLine = true,
+                value = adbPathState.value,
+                onValueChange = {
+                    adbPathState.value = it
+                    SettingsService.adbPath = it.text
+                }
+            )
+            TextField(
+                label = { Text("Emulator path") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                value = emulatorPathState.value,
+                onValueChange = {
+                    emulatorPathState.value = it
+                    SettingsService.emulatorPath = it.text
+                }
+            )
         }
     }
 }
