@@ -6,8 +6,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import models.Connection
 import util.ErrorHelper
+import util.ExecuteHelper
 import util.JsonHelper
-import util.execute
 import java.util.prefs.Preferences
 
 object ConnectionsService {
@@ -31,7 +31,7 @@ object ConnectionsService {
     fun connect(connection: Connection) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val result = execute(SettingsService.adbPath, listOf("connect", connection.address))
+                val result = ExecuteHelper.executeAdb(listOf("connect", connection.address))
                 if (!Regex("(already )?connected to .*", RegexOption.MULTILINE).containsMatchIn(result)) {
                     throw Throwable(result)
                 }
@@ -46,7 +46,7 @@ object ConnectionsService {
     fun disconnect(connection: Connection) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val result = execute(SettingsService.adbPath, listOf("disconnect", connection.address))
+                val result = ExecuteHelper.executeAdb(listOf("disconnect", connection.address))
                 if (
                     !Regex("disconnected .*", RegexOption.MULTILINE).containsMatchIn(result) &&
                     !Regex("error: no such device '.*'", RegexOption.MULTILINE).containsMatchIn(result)

@@ -6,8 +6,8 @@ import kotlinx.coroutines.launch
 import models.Emulator
 import models.EmulatorParameters
 import util.ErrorHelper
+import util.ExecuteHelper
 import util.JsonHelper
-import util.execute
 import java.util.prefs.Preferences
 
 object EmulatorsService {
@@ -20,7 +20,7 @@ object EmulatorsService {
     fun getEmulators(callback: (emulators: List<Emulator>) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val emulators = execute(SettingsService.emulatorPath, listOf("-list-avds"))
+                val emulators = ExecuteHelper.execute(SettingsService.emulatorPath, listOf("-list-avds"))
                     .split("\n")
                     .filter { line -> line.isNotEmpty() }
                     .map { name -> Emulator(name, getEmulatorParameters(name)) }
@@ -42,7 +42,7 @@ object EmulatorsService {
                 if (emulator.parameters.writableSystem) {
                     arguments.add("-writable-system")
                 }
-                val response = execute(SettingsService.emulatorPath, arguments)
+                val response = ExecuteHelper.execute(SettingsService.emulatorPath, arguments)
                 if (!response.contains("boot completed")) {
                     throw Throwable(response)
                 }

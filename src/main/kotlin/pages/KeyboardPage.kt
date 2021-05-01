@@ -25,10 +25,18 @@ class KeyboardPage : Page("keyboard", "Keyboard") {
 
             Row {
                 Column {
-                    Button(modifier = Modifier.padding(bottom = 8.dp), onClick = { KeyboardService.sendBackspaceKey() }) {
+                    Button(modifier = Modifier.padding(bottom = 8.dp), enabled = activeDevice != null, onClick = {
+                        activeDevice?.let { device ->
+                            KeyboardService.sendBackspaceKey(device)
+                        }
+                    }) {
                         Image(imageVector = vectorXmlResource("icons/outline_backspace_24.xml"), contentDescription = "backspace")
                     }
-                    Button(onClick = { KeyboardService.sendTabKey() }) {
+                    Button(enabled = activeDevice != null, onClick = {
+                        activeDevice?.let { device ->
+                            KeyboardService.sendTabKey(device)
+                        }
+                    }) {
                         Image(imageVector = vectorXmlResource("icons/outline_keyboard_tab_24.xml"), contentDescription = "tab")
                     }
                 }
@@ -39,7 +47,11 @@ class KeyboardPage : Page("keyboard", "Keyboard") {
                     value = inputState.value,
                     onValueChange = { inputState.value = it }
                 )
-                Button(enabled = inputState.value.text.isNotEmpty(), onClick = { KeyboardService.sendText(inputState.value.text) }) {
+                Button(enabled = activeDevice != null && inputState.value.text.isNotEmpty(), onClick = {
+                    activeDevice?.let { device ->
+                        KeyboardService.sendText(device, inputState.value.text)
+                    }
+                }) {
                     Image(imageVector = vectorXmlResource("icons/outline_send_24.xml"), contentDescription = "send")
                 }
             }

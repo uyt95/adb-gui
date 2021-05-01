@@ -3,14 +3,15 @@ package services
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import models.Device
 import util.ErrorHelper
-import util.execute
+import util.ExecuteHelper
 
 object KeyboardService {
-    fun sendBackspaceKey() {
+    fun sendBackspaceKey(device: Device) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = execute(SettingsService.adbPath, listOf("shell", "input", "keyevent", "KEYCODE_DEL"))
+                val response = ExecuteHelper.executeAdb(listOf("shell", "input", "keyevent", "KEYCODE_DEL"), device)
                 if (response.isNotEmpty()) {
                     throw Throwable(response)
                 }
@@ -20,10 +21,10 @@ object KeyboardService {
         }
     }
 
-    fun sendTabKey() {
+    fun sendTabKey(device: Device) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = execute(SettingsService.adbPath, listOf("shell", "input", "keyevent", "KEYCODE_TAB"))
+                val response = ExecuteHelper.executeAdb(listOf("shell", "input", "keyevent", "KEYCODE_TAB"), device)
                 if (response.isNotEmpty()) {
                     throw Throwable(response)
                 }
@@ -33,10 +34,10 @@ object KeyboardService {
         }
     }
 
-    fun sendText(text: String) {
+    fun sendText(device: Device, text: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = execute(SettingsService.adbPath, listOf("shell", "input", "keyboard", "text", "'$text'"))
+                val response = ExecuteHelper.executeAdb(listOf("shell", "input", "keyboard", "text", "'$text'"), device)
                 if (response.isNotEmpty()) {
                     throw Throwable(response)
                 }

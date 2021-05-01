@@ -5,7 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import models.Device
 import util.ErrorHelper
-import util.execute
+import util.ExecuteHelper
 
 object DevicesService {
     var mainDevicesObserver: ((devices: List<Device>) -> Unit)? = null
@@ -13,7 +13,7 @@ object DevicesService {
     fun refreshDevices() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val devices = execute(SettingsService.adbPath, listOf("devices")).split("\n")
+                val devices = ExecuteHelper.executeAdb(listOf("devices")).split("\n")
                     .map { line -> line.split(Regex("\\s+")) }
                     .filter { tokens -> tokens.size == 2 }
                     .map { row ->
