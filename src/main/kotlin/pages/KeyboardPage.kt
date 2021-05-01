@@ -8,12 +8,14 @@ import androidx.compose.material.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import components.Page
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import models.Device
 import services.KeyboardService
 
@@ -21,6 +23,7 @@ class KeyboardPage : Page("keyboard", "Keyboard") {
     @Composable
     override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
         Column {
+            val scope = rememberCoroutineScope()
             val inputState = remember { mutableStateOf(TextFieldValue("")) }
 
             Row {
@@ -49,7 +52,11 @@ class KeyboardPage : Page("keyboard", "Keyboard") {
                 )
                 Button(enabled = activeDevice != null && inputState.value.text.isNotEmpty(), onClick = {
                     activeDevice?.let { device ->
-                        KeyboardService.sendText(device, inputState.value.text)
+                        KeyboardService.sendText(device, inputState.value.text) {
+                            scope.launch {
+                                inputState.value = TextFieldValue("")
+                            }
+                        }
                     }
                 }) {
                     Image(imageVector = vectorXmlResource("icons/outline_send_24.xml"), contentDescription = "send")

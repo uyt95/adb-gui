@@ -34,13 +34,14 @@ object KeyboardService {
         }
     }
 
-    fun sendText(device: Device, text: String) {
+    fun sendText(device: Device, text: String, successCallback: () -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val response = ExecuteHelper.executeAdb(listOf("shell", "input", "keyboard", "text", "'$text'"), device)
                 if (response.isNotEmpty()) {
                     throw Throwable(response)
                 }
+                successCallback.invoke()
             } catch (t: Throwable) {
                 ErrorHelper.handleThrowable(t)
             }
