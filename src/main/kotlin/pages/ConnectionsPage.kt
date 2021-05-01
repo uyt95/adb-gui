@@ -97,13 +97,11 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                         connections = ConnectionsService.connections
 
                         showAddDialog.value = false
-                        AppManager.focusedWindow?.close()
                     }
                 },
                 onDismiss = {
                     scope.launch {
                         showAddDialog.value = false
-                        AppManager.focusedWindow?.close()
                     }
                 }
             )
@@ -124,7 +122,6 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                 onDismiss = {
                     scope.launch {
                         showEditDialog.value = false
-                        AppManager.focusedWindow?.close()
                     }
                 }
             )

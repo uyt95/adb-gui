@@ -88,14 +88,12 @@ class EmulatorsPage : Page("emulators", "Emulators") {
                             }
 
                             showEditDialog.value = false
-                            AppManager.focusedWindow?.close()
                         }
                     },
                     cancelText = "Cancel",
                     onCancel = {
                         scope.launch {
                             showEditDialog.value = false
-                            AppManager.focusedWindow?.close()
                         }
                     }
                 )

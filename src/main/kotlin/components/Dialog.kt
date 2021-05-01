@@ -2,7 +2,6 @@ package components
 
 import Palette
 import androidx.compose.desktop.DesktopTheme
-import androidx.compose.desktop.Window
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
@@ -11,8 +10,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -25,10 +25,9 @@ object Dialog {
         content: @Composable () -> Unit
     ) {
         if (show.value) {
-            Window(
-                title = title,
-                size = IntSize(400, 250),
+            Dialog(
                 onDismissRequest = { scope.launch { show.value = false } },
+                properties = DialogProperties(title = title)
             ) {
                 MaterialTheme(Palette.lightColors) {
                     DesktopTheme {
