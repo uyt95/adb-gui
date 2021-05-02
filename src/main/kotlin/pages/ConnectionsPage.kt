@@ -3,6 +3,7 @@ package pages
 import androidx.compose.desktop.AppManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
@@ -35,6 +36,8 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
         val showAddDialog = remember { mutableStateOf(false) }
         val showEditDialog = remember { mutableStateOf(false) }
         val editDialogConnection: MutableState<Connection?> = remember { mutableStateOf(null) }
+        val showConfirmDeleteDialog = remember { mutableStateOf(false) }
+        val confirmDeleteDialogConnection: MutableState<Connection?> = remember { mutableStateOf(null) }
         var connections: List<Connection> by remember { mutableStateOf(emptyList()) }
         LaunchedEffect(connections) {
             connections = ConnectionsService.connections
@@ -80,10 +83,8 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                         }
                         Button(onClick = {
                             scope.launch {
-                                val newConnections = connections.toMutableList()
-                                newConnections.remove(it)
-                                ConnectionsService.connections = newConnections
-                                connections = newConnections
+                                confirmDeleteDialogConnection.value = it
+                                showConfirmDeleteDialog.value = true
                             }
                         }) { Image(imageVector = vectorXmlResource("icons/outline_delete_24.xml"), contentDescription = "remove") }
                     }
@@ -131,6 +132,28 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                     }
                 }
             )
+        })
+
+        Dialog.renderDialog(show = showConfirmDeleteDialog, scope = scope, title = "Remove connection", content = {
+            Column {
+                Text(
+                    text = "Are you sure you want to remove ${confirmDeleteDialogConnection.value?.name}?",
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Dialog.renderDialogButtons(
+                    "Remove",
+                    onConfirm = {
+                        val newConnections = connections.toMutableList()
+                        newConnections.remove(confirmDeleteDialogConnection.value)
+                        ConnectionsService.connections = newConnections
+                        connections = newConnections
+
+                        showConfirmDeleteDialog.value = false
+                    },
+                    cancelText = "Cancel",
+                    onCancel = { showConfirmDeleteDialog.value = false }
+                )
+            }
         })
     }
 
