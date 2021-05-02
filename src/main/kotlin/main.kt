@@ -1,14 +1,12 @@
 import androidx.compose.desktop.DesktopTheme
 import androidx.compose.desktop.Window
-import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.dp
 import components.DeviceSelector
 import kotlinx.coroutines.launch
@@ -16,6 +14,7 @@ import models.Device
 import services.ConnectionsService
 import services.DevicesService
 import util.ErrorHelper
+import util.ExecuteHelper
 
 const val appTitle = "ADB GUI"
 
@@ -58,8 +57,15 @@ fun main() = Window(title = appTitle) {
                         Row(modifier = Modifier.height(50.dp).fillMaxWidth()) {
                             Text(appTitle, modifier = Modifier.align(Alignment.CenterVertically))
                             Box(modifier = Modifier.weight(1f)) {}
-                            Box(modifier = Modifier.align(Alignment.CenterVertically)) {
+                            Box(modifier = Modifier.align(Alignment.CenterVertically).padding(end = 8.dp)) {
                                 DeviceSelector.render(devices, activeDevice, connectionsMap) { activeDevice = it }
+                            }
+                            Button(modifier = Modifier.align(Alignment.CenterVertically), enabled = activeDevice != null, onClick = {
+                                activeDevice?.let { device ->
+                                    DevicesService.rebootDevice(device)
+                                }
+                            }) {
+                                Image(imageVector = vectorXmlResource("icons/outline_power_settings_new_24.xml"), contentDescription = "reboot")
                             }
                         }
                     })

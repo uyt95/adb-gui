@@ -28,4 +28,19 @@ object DevicesService {
             }
         }
     }
+
+    fun rebootDevice(device: Device) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = ExecuteHelper.executeAdb(listOf("reboot"), device)
+                if (response.isNotEmpty()) {
+                    throw Throwable(response)
+                }
+            } catch (t: Throwable) {
+                ErrorHelper.handleThrowable(t)
+            } finally {
+                refreshDevices()
+            }
+        }
+    }
 }
