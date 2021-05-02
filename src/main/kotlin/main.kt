@@ -1,13 +1,16 @@
 import androidx.compose.desktop.DesktopTheme
 import androidx.compose.desktop.Window
-import androidx.compose.foundation.*
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.dp
+import components.DeviceSelector
 import kotlinx.coroutines.launch
 import models.Device
 import services.ConnectionsService
@@ -20,8 +23,6 @@ const val appTitle = "ADB GUI"
 fun main() = Window(title = appTitle) {
     val scope = rememberCoroutineScope()
     var activeRoute by remember { mutableStateOf(Router.pages.first().route) }
-
-    var devicesExpanded by remember { mutableStateOf(false) }
 
     var errorMessage: String? by remember { mutableStateOf(null) }
     ErrorHelper.mainErrorObserver = { value ->
@@ -56,26 +57,9 @@ fun main() = Window(title = appTitle) {
                     TopAppBar(title = {
                         Row(modifier = Modifier.height(50.dp).fillMaxWidth()) {
                             Text(appTitle, modifier = Modifier.align(Alignment.CenterVertically))
-                            Box(Modifier.weight(1f)) {}
-                            Button({ devicesExpanded = true }, modifier = Modifier.align(Alignment.CenterVertically), enabled = devices.isNotEmpty()) {
-                                Text(connectionsMap.getOrDefault(activeDevice?.address, activeDevice?.address) ?: "--")
-                                DropdownMenu(
-                                    expanded = devicesExpanded,
-                                    onDismissRequest = { devicesExpanded = false },
-                                    modifier = Modifier.align(Alignment.CenterVertically)
-                                ) {
-                                    devices.forEach { device ->
-                                        DropdownMenuItem(onClick = {
-                                            devicesExpanded = false
-                                            activeDevice = device
-                                        }) {
-                                            Text(text = connectionsMap.getOrDefault(device.address, device.address))
-                                        }
-                                    }
-                                }
-                            }
-                            Button({ DevicesService.refreshDevices() }, modifier = Modifier.align(Alignment.CenterVertically)) {
-                                Image(imageVector = vectorXmlResource("icons/outline_refresh_24.xml"), contentDescription = "refresh")
+                            Box(modifier = Modifier.weight(1f)) {}
+                            Box(modifier = Modifier.align(Alignment.CenterVertically)) {
+                                DeviceSelector.render(devices, activeDevice, connectionsMap) { activeDevice = it }
                             }
                         }
                     })
