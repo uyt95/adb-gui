@@ -1,5 +1,6 @@
 package components
 
+import androidx.compose.desktop.AppManager
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,12 +16,38 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import models.Device
+import java.awt.datatransfer.DataFlavor
+import java.awt.dnd.DnDConstants
+import java.awt.dnd.DropTarget
+import java.awt.dnd.DropTargetDropEvent
+import java.io.File
 
-abstract class Page(val route: String, val title: String, val fab: Fab? = null) {
+abstract class Page(val route: String, val title: String, val fab: Fab? = null, private val canDndFiles: Boolean = false) {
     data class Fab(val text: String, var onClick: (() -> Unit)? = null)
+
+    protected var handleDndFiles: ((paths: List<String>) -> Unit)? = null
 
     @Composable
     protected abstract fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?)
+
+    @Composable
+    protected open fun fileDragAndDrop() {
+        AppManager.windows.first().window.contentPane.dropTarget = object : DropTarget() {
+            override fun isActive(): Boolean {
+                return canDndFiles
+            }
+
+            override fun drop(event: DropTargetDropEvent) {
+                try {
+                    event.acceptDrop(DnDConstants.ACTION_REFERENCE)
+                    val droppedFiles = event.transferable.getTransferData(DataFlavor.javaFileListFlavor) as List<*>
+                    val droppedPaths = droppedFiles.filterIsInstance<File>().map { it.absolutePath.trim() }.filter { it.isNotEmpty() }
+                    handleDndFiles?.invoke(droppedPaths)
+                } catch (t: Throwable) {
+                }
+            }
+        }
+    }
 
     @Composable
     fun render(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
@@ -43,5 +70,6 @@ abstract class Page(val route: String, val title: String, val fab: Fab? = null) 
                 }
             }
         }
+        fileDragAndDrop()
     }
 }

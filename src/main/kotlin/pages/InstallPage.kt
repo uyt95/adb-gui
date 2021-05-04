@@ -18,11 +18,19 @@ import services.InstallService
 import util.FileHelper
 
 
-class InstallPage : Page("install", "Install") {
+class InstallPage : Page("install", "Install", canDndFiles = true) {
     @Composable
     override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
         val installing = remember { mutableStateOf(false) }
         val filePath = remember { mutableStateOf("") }
+
+        handleDndFiles = { paths ->
+            paths.first()?.let { path ->
+                if (path.isNotEmpty()) {
+                    filePath.value = path
+                }
+            }
+        }
 
         if (installing.value) {
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {

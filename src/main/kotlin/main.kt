@@ -1,3 +1,4 @@
+import androidx.compose.desktop.AppManager
 import androidx.compose.desktop.DesktopTheme
 import androidx.compose.desktop.Window
 import androidx.compose.foundation.*
@@ -14,6 +15,11 @@ import models.Device
 import services.ConnectionsService
 import services.DevicesService
 import util.ErrorHelper
+import java.awt.datatransfer.DataFlavor
+import java.awt.dnd.DnDConstants
+import java.awt.dnd.DropTarget
+import java.awt.dnd.DropTargetDropEvent
+import java.io.File
 
 const val appTitle = "ADB GUI"
 
