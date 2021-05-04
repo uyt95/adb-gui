@@ -3,22 +3,23 @@ package util
 import models.Device
 import services.SettingsService
 import java.io.BufferedReader
-import java.util.concurrent.TimeUnit
 
 object ExecuteHelper {
+    class ExecuteError(message: String) : Throwable(message)
+
     fun execute(command: String, arguments: List<String>): String {
         val process = ProcessBuilder(listOf(command) + arguments)
             .redirectOutput(ProcessBuilder.Redirect.PIPE)
             .redirectError(ProcessBuilder.Redirect.PIPE)
             .start()
 
-        process.waitFor(60, TimeUnit.SECONDS)
+        process.waitFor()
 
         return if (process.exitValue() == 0) {
             process.inputStream.bufferedReader().use(BufferedReader::readText)
         } else {
             val errorText = process.errorStream.bufferedReader().use(BufferedReader::readText)
-            throw Throwable(errorText)
+            throw ExecuteError(errorText)
         }
     }
 

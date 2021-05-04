@@ -14,10 +14,10 @@ import models.Device
 import services.ConnectionsService
 import services.DevicesService
 import util.ErrorHelper
-import util.ExecuteHelper
 
 const val appTitle = "ADB GUI"
 
+@ExperimentalComposeApi
 @ExperimentalMaterialApi
 fun main() = Window(title = appTitle) {
     val scope = rememberCoroutineScope()
