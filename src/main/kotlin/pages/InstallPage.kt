@@ -12,8 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import components.Page
+import components.select
 import kotlinx.coroutines.CoroutineScope
 import models.Device
+import models.InstallMode
+import models.SelectOption
 import services.InstallService
 import util.FileHelper
 
@@ -23,9 +26,12 @@ class InstallPage : Page("install", "Install", canDndFiles = true) {
     override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
         val installing = remember { mutableStateOf(false) }
         val filePath = remember { mutableStateOf("") }
+        val modeOptions = remember { InstallMode.values().map { mode -> SelectOption(mode.label, mode) } }
+        val mode = remember { mutableStateOf(modeOptions.first()) }
 
         handleDndFiles = { paths ->
-            paths.first()?.let { path ->
+            if (paths.isNotEmpty()) {
+                val path = paths.first().trim()
                 if (path.isNotEmpty()) {
                     filePath.value = path
                 }
@@ -38,7 +44,9 @@ class InstallPage : Page("install", "Install", canDndFiles = true) {
             }
         } else {
             Column {
-                Row(modifier = Modifier.padding(bottom = 8.dp)) { }
+                Row(modifier = Modifier.padding(bottom = 8.dp)) {
+                    select(options = modeOptions, selected = mode.value, onSelected = { option -> mode.value = option })
+                }
                 Row(modifier = Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextField(
                         modifier = Modifier.weight(1f).padding(end = 8.dp),
@@ -58,7 +66,7 @@ class InstallPage : Page("install", "Install", canDndFiles = true) {
                     Button(enabled = filePath.value.isNotEmpty() && activeDevice != null, onClick = {
                         activeDevice?.let { device ->
                             installing.value = true
-                            InstallService.install(device, filePath.value) {
+                            InstallService.install(device, filePath.value, mode.value.value) {
                                 installing.value = false
                             }
                         }
