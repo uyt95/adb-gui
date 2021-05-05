@@ -1,4 +1,3 @@
-import androidx.compose.desktop.AppManager
 import androidx.compose.desktop.DesktopTheme
 import androidx.compose.desktop.Window
 import androidx.compose.foundation.*
@@ -9,17 +8,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.dp
-import components.DeviceSelector
+import components.deviceSelector
 import kotlinx.coroutines.launch
+import models.Connection
 import models.Device
 import services.ConnectionsService
 import services.DevicesService
 import util.ErrorHelper
-import java.awt.datatransfer.DataFlavor
-import java.awt.dnd.DnDConstants
-import java.awt.dnd.DropTarget
-import java.awt.dnd.DropTargetDropEvent
-import java.io.File
 
 const val appTitle = "ADB GUI"
 
@@ -48,10 +43,10 @@ fun main() = Window(title = appTitle) {
     }
     DevicesService.refreshDevices()
 
-    var connectionsMap: Map<String, String> by remember { mutableStateOf(ConnectionsService.connections.associate { it.address to it.name }) }
+    var connections: List<Connection> by remember { mutableStateOf(ConnectionsService.connections) }
     ConnectionsService.mainConnectionsObserver = { value ->
         scope.launch {
-            connectionsMap = value.associate { it.address to it.name }
+            connections = value
         }
     }
 
@@ -64,7 +59,7 @@ fun main() = Window(title = appTitle) {
                             Text(appTitle, modifier = Modifier.align(Alignment.CenterVertically))
                             Box(modifier = Modifier.weight(1f)) {}
                             Box(modifier = Modifier.align(Alignment.CenterVertically).padding(end = 8.dp)) {
-                                DeviceSelector.render(devices, activeDevice, connectionsMap) { activeDevice = it }
+                                deviceSelector(devices, activeDevice, connections) { activeDevice = it }
                             }
                             Button(modifier = Modifier.align(Alignment.CenterVertically), enabled = activeDevice != null, onClick = {
                                 activeDevice?.let { device ->
