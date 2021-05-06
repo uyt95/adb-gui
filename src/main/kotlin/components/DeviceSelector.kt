@@ -14,8 +14,12 @@ import services.DevicesService
 
 @Composable
 fun deviceSelector(devices: List<Device>, activeDevice: Device?, connections: List<Connection>, onDeviceSelected: (device: Device) -> Unit) {
-    val options = devices.map { device -> SelectOption(connections.find { connection -> connection.address == device.address }?.name ?: device.address, device) }
-    val selected = options.find { option -> option.value == activeDevice }
+    val options = remember(devices, connections) {
+        devices.map { device -> SelectOption(connections.find { connection -> connection.address == device.address }?.name ?: device.address, device) }
+    }
+    val selected = remember(options, activeDevice) {
+        options.find { option -> option.value == activeDevice }
+    }
 
     Row {
         select(
