@@ -3,6 +3,9 @@ package services
 import com.squareup.moshi.Types
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import models.Connection
 import util.ErrorHelper
@@ -10,23 +13,28 @@ import util.ExecuteHelper
 import util.JsonHelper
 import java.util.prefs.Preferences
 
+@ExperimentalCoroutinesApi
 object ConnectionsService {
     private const val KEY_CONNECTIONS = "connections"
 
     private val preferences = Preferences.userRoot().node("connections")
     private val connectionListAdapter = JsonHelper.moshi.adapter<List<Connection>>(Types.newParameterizedType(List::class.java, Connection::class.java))
 
-    var mainConnectionsObserver: ((connections: List<Connection>) -> Unit)? = null
+    private val mutableConnections: MutableStateFlow<List<Connection>> = MutableStateFlow(emptyList())
 
-    var connections: List<Connection>
-        get() {
-            val json = preferences.get(KEY_CONNECTIONS, "[]")
-            return connectionListAdapter.fromJson(json)?.sortedBy { it.name.toLowerCase() } ?: emptyList()
-        }
-        set(value) {
-            val json = connectionListAdapter.toJson(value)
-            preferences.put(KEY_CONNECTIONS, json)
-        }
+    val connections: StateFlow<List<Connection>>
+        get() = mutableConnections
+
+    init {
+        val json = preferences.get(KEY_CONNECTIONS, "[]")
+        mutableConnections.value = connectionListAdapter.fromJson(json)?.sortedBy { it.name.toLowerCase() } ?: emptyList()
+    }
+
+    fun setConnections(value: List<Connection>) {
+        mutableConnections.value = value
+        val json = connectionListAdapter.toJson(value)
+        preferences.put(KEY_CONNECTIONS, json)
+    }
 
     fun connect(connection: Connection) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -38,7 +46,7 @@ object ConnectionsService {
             } catch (t: Throwable) {
                 ErrorHelper.handleThrowable(t)
             } finally {
-                DevicesService.refreshDevices()
+                DevicesService.loadDevices()
             }
         }
     }
@@ -56,7 +64,7 @@ object ConnectionsService {
             } catch (t: Throwable) {
                 ErrorHelper.handleThrowable(t)
             } finally {
-                DevicesService.refreshDevices()
+                DevicesService.loadDevices()
             }
         }
     }

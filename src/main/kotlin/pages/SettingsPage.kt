@@ -13,12 +13,11 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import components.Page
 import kotlinx.coroutines.CoroutineScope
-import models.Device
 import services.SettingsService
 
 class SettingsPage : Page("settings", "Settings") {
     @Composable
-    override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
+    override fun renderContent(mainScope: CoroutineScope) {
         Column {
             val adbPathState = remember { mutableStateOf(TextFieldValue(SettingsService.adbPath)) }
             val emulatorPathState = remember { mutableStateOf(TextFieldValue(SettingsService.emulatorPath)) }

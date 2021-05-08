@@ -5,25 +5,25 @@ import androidx.compose.material.Button
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import components.Page
 import components.select
 import kotlinx.coroutines.CoroutineScope
-import models.Device
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import models.InstallMode
 import models.SelectOption
+import services.DevicesService
 import services.InstallService
 import util.FileHelper
 
-
+@ExperimentalCoroutinesApi
 class InstallPage : Page("install", "Install", canDndFiles = true) {
     @Composable
-    override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
+    override fun renderContent(mainScope: CoroutineScope) {
+        val activeDevice by DevicesService.activeDevice.collectAsState()
         val installing = remember { mutableStateOf(false) }
         val filePath = remember { mutableStateOf("") }
         val modeOptions = remember { InstallMode.values().map { mode -> SelectOption(mode.label, mode) } }

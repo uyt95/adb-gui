@@ -9,15 +9,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.dp
 import components.deviceSelector
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import models.Connection
-import models.Device
-import services.ConnectionsService
 import services.DevicesService
 import util.ErrorHelper
+import java.awt.image.BufferedImage
+import javax.imageio.ImageIO
 
 const val appTitle = "ADB GUI"
 
+@ExperimentalCoroutinesApi
 @ExperimentalComposeApi
 @ExperimentalMaterialApi
 fun main() = Window(title = appTitle) {
@@ -31,24 +32,7 @@ fun main() = Window(title = appTitle) {
         }
     }
 
-    var devices: List<Device> by remember { mutableStateOf(emptyList()) }
-    var activeDevice: Device? by remember { mutableStateOf(null) }
-    DevicesService.mainDevicesObserver = { value ->
-        scope.launch {
-            devices = value
-            if (activeDevice == null || !value.contains(activeDevice)) {
-                activeDevice = value.firstOrNull()
-            }
-        }
-    }
-    DevicesService.refreshDevices()
-
-    var connections: List<Connection> by remember { mutableStateOf(ConnectionsService.connections) }
-    ConnectionsService.mainConnectionsObserver = { value ->
-        scope.launch {
-            connections = value
-        }
-    }
+    val activeDevice by DevicesService.activeDevice.collectAsState()
 
     MaterialTheme(Palette.lightColors) {
         DesktopTheme {
@@ -59,7 +43,7 @@ fun main() = Window(title = appTitle) {
                             Text(appTitle, modifier = Modifier.align(Alignment.CenterVertically))
                             Box(modifier = Modifier.weight(1f)) {}
                             Box(modifier = Modifier.align(Alignment.CenterVertically).padding(end = 8.dp)) {
-                                deviceSelector(devices, activeDevice, connections) { activeDevice = it }
+                                deviceSelector()
                             }
                             Button(modifier = Modifier.align(Alignment.CenterVertically), enabled = activeDevice != null, onClick = {
                                 activeDevice?.let { device ->
@@ -87,7 +71,7 @@ fun main() = Window(title = appTitle) {
                             }
                             VerticalScrollbar(modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(), adapter = rememberScrollbarAdapter(navScrollState))
                         }
-                        Router.renderPage(activeRoute, scope, devices, activeDevice)
+                        Router.renderPage(activeRoute, scope)
                     }
                 }
                 errorMessage?.let { message ->

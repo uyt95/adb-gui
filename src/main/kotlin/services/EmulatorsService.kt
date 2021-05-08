@@ -2,6 +2,9 @@ package services
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import models.Emulator
 import models.EmulatorParameters
@@ -10,6 +13,7 @@ import util.ExecuteHelper
 import util.JsonHelper
 import java.util.prefs.Preferences
 
+@ExperimentalCoroutinesApi
 object EmulatorsService {
     private const val KEY_EMULATOR = "emulator";
     private const val KEY_PARAMETERS = "parameters";
@@ -17,7 +21,16 @@ object EmulatorsService {
     private val preferences = Preferences.userRoot().node("emulators")
     private val emulatorParametersAdapter = JsonHelper.moshi.adapter(EmulatorParameters::class.java)
 
-    fun getEmulators(callback: (emulators: List<Emulator>) -> Unit) {
+    private val mutableEmulators: MutableStateFlow<List<Emulator>> = MutableStateFlow(emptyList())
+
+    val emulators: StateFlow<List<Emulator>>
+        get() = mutableEmulators
+
+    init {
+        loadEmulators()
+    }
+
+    fun loadEmulators() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val emulators = ExecuteHelper.execute(SettingsService.emulatorPath, listOf("-list-avds"))
@@ -25,8 +38,9 @@ object EmulatorsService {
                     .filter { line -> line.isNotEmpty() }
                     .map { name -> Emulator(name, getEmulatorParameters(name)) }
                     .sortedBy { emulator -> emulator.name }
-                callback.invoke(emulators)
+                mutableEmulators.value = emulators
             } catch (t: Throwable) {
+                mutableEmulators.value = emptyList()
                 ErrorHelper.handleThrowable(t)
             }
         }
@@ -49,13 +63,13 @@ object EmulatorsService {
             } catch (t: Throwable) {
                 ErrorHelper.handleThrowable(t)
             } finally {
-                DevicesService.refreshDevices()
+                DevicesService.loadDevices()
             }
         }
     }
 
-    fun saveEmulatorParameters(emulator: Emulator, newEmulatorParameters: EmulatorParameters) {
-        val json = emulatorParametersAdapter.toJson(newEmulatorParameters)
+    fun saveEmulatorParameters(emulator: Emulator) {
+        val json = emulatorParametersAdapter.toJson(emulator.parameters)
         preferences.put("$KEY_EMULATOR.${emulator.name}.$KEY_PARAMETERS", json)
     }
 

@@ -1,19 +1,20 @@
 package pages
 
-import androidx.compose.desktop.AppManager
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.AlertDialog
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.*
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusOrder
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.vectorXmlResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
@@ -21,27 +22,27 @@ import components.Dialog
 import components.Page
 import components.table
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import models.Connection
-import models.Device
 import models.TableColumn
 import services.ConnectionsService
+import services.DevicesService
 import util.IpAddressHelper
 
+@ExperimentalCoroutinesApi
 @ExperimentalComposeApi
 class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
     @Composable
-    override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
+    override fun renderContent(mainScope: CoroutineScope) {
         val scope = rememberCoroutineScope()
+        val connections by ConnectionsService.connections.collectAsState()
+        val devices by DevicesService.devices.collectAsState()
         val showAddDialog = remember { mutableStateOf(false) }
         val showEditDialog = remember { mutableStateOf(false) }
         val editDialogConnection: MutableState<Connection?> = remember { mutableStateOf(null) }
         val showConfirmDeleteDialog = remember { mutableStateOf(false) }
         val confirmDeleteDialogConnection: MutableState<Connection?> = remember { mutableStateOf(null) }
-        var connections: List<Connection> by remember { mutableStateOf(emptyList()) }
-        LaunchedEffect(connections) {
-            connections = ConnectionsService.connections
-        }
 
         fab?.onClick = {
             scope.launch {
@@ -100,8 +101,7 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                     scope.launch {
                         val newConnections = connections.toMutableList()
                         newConnections.add(Connection(name, address))
-                        ConnectionsService.connections = newConnections
-                        connections = ConnectionsService.connections
+                        ConnectionsService.setConnections(newConnections)
 
                         showAddDialog.value = false
                     }
@@ -122,8 +122,7 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                         val newConnections = connections.toMutableList()
                         newConnections.remove(connection)
                         newConnections.add(Connection(name, address))
-                        ConnectionsService.connections = newConnections
-                        connections = ConnectionsService.connections
+                        ConnectionsService.setConnections(newConnections)
                     }
                 },
                 onDismiss = {
@@ -145,8 +144,7 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                     onConfirm = {
                         val newConnections = connections.toMutableList()
                         newConnections.remove(confirmDeleteDialogConnection.value)
-                        ConnectionsService.connections = newConnections
-                        connections = newConnections
+                        ConnectionsService.setConnections(newConnections)
 
                         showConfirmDeleteDialog.value = false
                     },

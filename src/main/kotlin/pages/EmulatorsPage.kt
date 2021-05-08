@@ -1,6 +1,5 @@
 package pages
 
-import androidx.compose.desktop.AppManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,26 +16,24 @@ import components.Dialog
 import components.Page
 import components.table
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import models.Device
 import models.Emulator
 import models.EmulatorParameters
 import models.TableColumn
 import services.EmulatorsService
 
+@ExperimentalCoroutinesApi
 class EmulatorsPage : Page("emulators", "Emulators") {
     @Composable
-    override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
+    override fun renderContent(mainScope: CoroutineScope) {
         val scope = rememberCoroutineScope()
         val showEditDialog = remember { mutableStateOf(false) }
         val editDialogEmulator: MutableState<Emulator?> = remember { mutableStateOf(null) }
-        var emulators: List<Emulator> by remember { mutableStateOf(emptyList()) }
-        LaunchedEffect(emulators) {
-            EmulatorsService.getEmulators() {
-                scope.launch {
-                    emulators = it
-                }
-            }
+        val emulators by EmulatorsService.emulators.collectAsState()
+
+        LaunchedEffect(true) {
+            EmulatorsService.loadEmulators()
         }
 
         table(
@@ -79,13 +76,9 @@ class EmulatorsPage : Page("emulators", "Emulators") {
                     confirmText = "Save",
                     onConfirm = {
                         scope.launch {
-                            val newParameters = EmulatorParameters(noSnapshotLoad.value, writableSystem.value)
-                            EmulatorsService.saveEmulatorParameters(emulator, newParameters)
-                            EmulatorsService.getEmulators() {
-                                scope.launch {
-                                    emulators = it
-                                }
-                            }
+                            emulator.parameters.noSnapshotLoad = noSnapshotLoad.value
+                            emulator.parameters.writableSystem = writableSystem.value
+                            EmulatorsService.saveEmulatorParameters(emulator)
 
                             showEditDialog.value = false
                         }

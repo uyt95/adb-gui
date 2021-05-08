@@ -2,15 +2,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ExperimentalComposeApi
 import components.Page
 import kotlinx.coroutines.CoroutineScope
-import models.Device
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import pages.*
 
+@ExperimentalCoroutinesApi
 @ExperimentalComposeApi
 object Router {
     val pages: List<Page> = listOf(ConnectionsPage(), EmulatorsPage(), KeyboardPage(), RemoteControlPage(), InstallPage(), SettingsPage())
 
     @Composable
-    fun renderPage(route: String, mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
-        pages.find { page -> page.route == route }?.render(mainScope, devices, activeDevice)
+    fun renderPage(route: String, mainScope: CoroutineScope) {
+        pages.find { page -> page.route == route }?.render(mainScope)
     }
 }

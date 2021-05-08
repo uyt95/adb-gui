@@ -1,6 +1,6 @@
 package models
 
 data class EmulatorParameters(
-    val noSnapshotLoad: Boolean = false,
-    val writableSystem: Boolean = false
+    var noSnapshotLoad: Boolean = false,
+    var writableSystem: Boolean = false
 )

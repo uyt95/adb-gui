@@ -1,27 +1,31 @@
 package pages
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import components.Page
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import models.Device
+import services.DevicesService
 import services.KeyboardService
 
+@ExperimentalCoroutinesApi
 class KeyboardPage : Page("keyboard", "Keyboard") {
     @Composable
-    override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
+    override fun renderContent(mainScope: CoroutineScope) {
+        val activeDevice by DevicesService.activeDevice.collectAsState()
+
         Column {
             val scope = rememberCoroutineScope()
             val inputState = remember { mutableStateOf(TextFieldValue("")) }

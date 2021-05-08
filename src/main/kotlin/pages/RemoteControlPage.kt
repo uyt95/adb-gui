@@ -5,15 +5,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.dp
 import components.Page
 import kotlinx.coroutines.CoroutineScope
-import models.Device
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import models.RemoteControlButton
+import services.DevicesService
 import services.RemoteControlService
 
+@ExperimentalCoroutinesApi
 class RemoteControlPage : Page("remote-control", "Remote control") {
     private val buttonGrid: List<List<RemoteControlButton?>> = listOf(
         listOf(RemoteControlButton("outline_power_settings_new_24", "power", "POWER"), null, RemoteControlButton("outline_mic_24", "voice search", "SEARCH")),
@@ -27,7 +31,9 @@ class RemoteControlPage : Page("remote-control", "Remote control") {
     )
 
     @Composable
-    override fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
+    override fun renderContent(mainScope: CoroutineScope) {
+        val activeDevice by DevicesService.activeDevice.collectAsState()
+
         Card {
             Column(modifier = Modifier.padding(4.dp)) {
                 buttonGrid.forEach { row ->

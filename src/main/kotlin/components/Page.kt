@@ -15,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
-import models.Device
 import java.awt.datatransfer.DataFlavor
 import java.awt.dnd.DnDConstants
 import java.awt.dnd.DropTarget
@@ -28,7 +27,7 @@ abstract class Page(val route: String, val title: String, val fab: Fab? = null, 
     protected var handleDndFiles: ((paths: List<String>) -> Unit)? = null
 
     @Composable
-    protected abstract fun renderContent(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?)
+    protected abstract fun renderContent(mainScope: CoroutineScope)
 
     @Composable
     protected open fun fileDragAndDrop() {
@@ -50,7 +49,7 @@ abstract class Page(val route: String, val title: String, val fab: Fab? = null, 
     }
 
     @Composable
-    fun render(mainScope: CoroutineScope, devices: List<Device>, activeDevice: Device?) {
+    fun render(mainScope: CoroutineScope) {
         Column(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxWidth().padding(8.dp, 8.dp, 8.dp, 0.dp)) {
                 Text(title, style = MaterialTheme.typography.h5)
@@ -60,7 +59,7 @@ abstract class Page(val route: String, val title: String, val fab: Fab? = null, 
                 val scrollState = rememberScrollState(0)
 
                 Box(modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(8.dp)) {
-                    renderContent(mainScope, devices, activeDevice)
+                    renderContent(mainScope)
                 }
                 VerticalScrollbar(modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(), adapter = rememberScrollbarAdapter(scrollState))
                 if (fab != null) {
