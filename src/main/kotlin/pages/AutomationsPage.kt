@@ -16,10 +16,7 @@ import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
-import components.Dialog
-import components.Page
-import components.select
-import components.table
+import components.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -153,43 +150,47 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
         }
 
         Column {
-            TextField(
-                label = { Text("Name") },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).focusOrder(nameFocusRequester),
-                singleLine = true,
-                value = name.value,
-                onValueChange = { name.value = it }
-            )
-            commands.value.forEachIndexed { index, command ->
-                commandField(
-                    command = command,
-                    canMoveUp = index > 0,
-                    canMoveDown = index < commands.value.size - 1,
-                    onChanged = {
-                        val newCommands = commands.value.toMutableList()
-                        if (it == null) {
-                            newCommands.removeAt(index)
-                        } else {
-                            newCommands[index] = it
-                        }
-                        commands.value = newCommands
-                    },
-                    onMove = { direction ->
-                        val newCommands = commands.value.toMutableList()
-                        val tempCommand = newCommands[index]
-                        newCommands[index] = newCommands[index + direction]
-                        newCommands[index + direction] = tempCommand
-                        commands.value = newCommands
+            scrollView {
+                Column {
+                    TextField(
+                        label = { Text("Name") },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).focusOrder(nameFocusRequester),
+                        singleLine = true,
+                        value = name.value,
+                        onValueChange = { name.value = it }
+                    )
+                    commands.value.forEachIndexed { index, command ->
+                        commandField(
+                            command = command,
+                            canMoveUp = index > 0,
+                            canMoveDown = index < commands.value.size - 1,
+                            onChanged = {
+                                val newCommands = commands.value.toMutableList()
+                                if (it == null) {
+                                    newCommands.removeAt(index)
+                                } else {
+                                    newCommands[index] = it
+                                }
+                                commands.value = newCommands
+                            },
+                            onMove = { direction ->
+                                val newCommands = commands.value.toMutableList()
+                                val tempCommand = newCommands[index]
+                                newCommands[index] = newCommands[index + direction]
+                                newCommands[index + direction] = tempCommand
+                                commands.value = newCommands
+                            }
+                        )
                     }
-                )
-            }
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Button(onClick = {
-                    val newCommands = commands.value.toMutableList()
-                    newCommands.add(Command.getCommand(Automation.commandOptions.first().value))
-                    commands.value = newCommands
-                }) {
-                    Text(text = "+")
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Button(onClick = {
+                            val newCommands = commands.value.toMutableList()
+                            newCommands.add(Command.getCommand(Automation.commandOptions.first().value))
+                            commands.value = newCommands
+                        }) {
+                            Text(text = "+")
+                        }
+                    }
                 }
             }
             Dialog.renderDialogButtons(

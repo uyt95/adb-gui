@@ -55,13 +55,11 @@ abstract class Page(val route: String, val title: String, val fab: Fab? = null, 
                 Text(title, style = MaterialTheme.typography.h5)
                 Divider(thickness = 2.dp)
             }
-            Box(modifier = Modifier.fillMaxSize()) {
-                val scrollState = rememberScrollState(0)
 
-                Box(modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(8.dp)) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                scrollView {
                     renderContent(mainScope)
                 }
-                VerticalScrollbar(modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(), adapter = rememberScrollbarAdapter(scrollState))
                 if (fab != null) {
                     FloatingActionButton(onClick = { fab.onClick?.let { it() } }, modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
                         Text(text = fab.text)

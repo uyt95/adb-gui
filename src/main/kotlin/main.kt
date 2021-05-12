@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.dp
 import components.deviceSelector
+import components.scrollView
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import services.DevicesService
@@ -56,9 +57,7 @@ fun main() = Window(title = appTitle) {
                     })
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Box(modifier = Modifier.fillMaxHeight().width(200.dp)) {
-                            val navScrollState = rememberScrollState(0)
-
-                            Box(modifier = Modifier.fillMaxSize().verticalScroll(navScrollState)) {
+                            scrollView {
                                 Column {
                                     Router.pages.forEach { page ->
                                         navItem(page.title, page.route == activeRoute) {
@@ -69,7 +68,6 @@ fun main() = Window(title = appTitle) {
                                     }
                                 }
                             }
-                            VerticalScrollbar(modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(), adapter = rememberScrollbarAdapter(navScrollState))
                         }
                         Router.renderPage(activeRoute, scope)
                     }
