@@ -11,8 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun scrollView(content: @Composable () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize()) {
+fun scrollView(modifier: Modifier = Modifier.fillMaxSize(), content: @Composable () -> Unit) {
+    Box(modifier = modifier) {
         val scrollState = rememberScrollState(0)
 
         Box(modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(8.dp)) {

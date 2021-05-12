@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusOrder
 import androidx.compose.ui.res.vectorXmlResource
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import components.*
 import kotlinx.coroutines.CoroutineScope
@@ -70,7 +71,7 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
             automations
         )
 
-        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add automation", content = {
+        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add automation", size = IntSize(600, 400), content = {
             renderEditAutomationDialogContent(
                 automation = null,
                 onSave = { _, name, commands ->
@@ -90,7 +91,7 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
             )
         })
 
-        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit automation", content = {
+        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit automation", size = IntSize(600, 400), content = {
             renderEditAutomationDialogContent(
                 automation = editDialogAutomation.value,
                 onSave = { automation, name, commands ->
@@ -146,8 +147,8 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
             onDispose { }
         }
 
-        Column {
-            scrollView {
+        Column(modifier = Modifier.padding(bottom = 8.dp)) {
+            scrollView(modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 8.dp)) {
                 Column {
                     TextField(
                         label = { Text("Name") },
@@ -157,27 +158,53 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
                         onValueChange = { name.value = it }
                     )
                     commands.value.forEachIndexed { index, command ->
-                        commandField(
-                            command = command,
-                            canMoveUp = index > 0,
-                            canMoveDown = index < commands.value.size - 1,
-                            onChanged = {
-                                val newCommands = commands.value.toMutableList()
-                                if (it == null) {
-                                    newCommands.removeAt(index)
-                                } else {
-                                    newCommands[index] = it
+                        Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = "Command #${index + 1}",
+                                        modifier = Modifier.weight(1f).align(Alignment.CenterVertically).padding(end = 8.dp, bottom = 8.dp)
+                                    )
+                                    vectorIconButton(
+                                        name = "outline_north_24",
+                                        contentDescription = "move up",
+                                        modifier = Modifier.padding(end = 4.dp),
+                                        enabled = index > 0
+                                    ) {
+                                        val newCommands = commands.value.toMutableList()
+                                        val tempCommand = newCommands[index]
+                                        newCommands[index] = newCommands[index - 1]
+                                        newCommands[index - 1] = tempCommand
+                                        commands.value = newCommands
+                                    }
+                                    vectorIconButton(
+                                        name = "outline_south_24",
+                                        contentDescription = "move down",
+                                        modifier = Modifier.padding(end = 4.dp),
+                                        enabled = index < commands.value.size - 1
+                                    ) {
+                                        val newCommands = commands.value.toMutableList()
+                                        val tempCommand = newCommands[index]
+                                        newCommands[index] = newCommands[index + 1]
+                                        newCommands[index + 1] = tempCommand
+                                        commands.value = newCommands
+                                    }
+                                    vectorIconButton(name = "outline_delete_24", contentDescription = "remove") {
+                                        val newCommands = commands.value.toMutableList()
+                                        newCommands.removeAt(index)
+                                        commands.value = newCommands
+                                    }
                                 }
-                                commands.value = newCommands
-                            },
-                            onMove = { direction ->
-                                val newCommands = commands.value.toMutableList()
-                                val tempCommand = newCommands[index]
-                                newCommands[index] = newCommands[index + direction]
-                                newCommands[index + direction] = tempCommand
-                                commands.value = newCommands
+                                commandField(
+                                    command = command,
+                                    onChanged = {
+                                        val newCommands = commands.value.toMutableList()
+                                        newCommands[index] = it
+                                        commands.value = newCommands
+                                    }
+                                )
                             }
-                        )
+                        }
                     }
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Button(onClick = {
@@ -204,32 +231,17 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
     }
 
     @Composable
-    private fun commandField(command: Command, canMoveUp: Boolean, canMoveDown: Boolean, onChanged: (command: Command?) -> Unit, onMove: (direction: Int) -> Unit) {
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    select(
-                        options = Automation.commandOptions,
-                        selected = Automation.commandOptions.find { it.value == command.key },
-                        onSelected = { onChanged.invoke(Command.getCommand(it.value)) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    Button(enabled = canMoveUp, onClick = { onMove.invoke(-1) }) {
-                        Image(imageVector = vectorXmlResource("icons/outline_north_24.xml"), contentDescription = "remove")
-                    }
-                    Button(enabled = canMoveDown, onClick = { onMove.invoke(1) }) {
-                        Image(imageVector = vectorXmlResource("icons/outline_south_24.xml"), contentDescription = "remove")
-                    }
-                    Button(onClick = { onChanged.invoke(null) }) {
-                        Image(imageVector = vectorXmlResource("icons/outline_delete_24.xml"), contentDescription = "remove")
-                    }
-                }
-                operationField(command.key, command.operation) {
-                    val newCommand = Command.getCommand(command.key)
-                    newCommand.operation = it
-                    onChanged.invoke(newCommand)
-                }
-            }
+    private fun commandField(command: Command, onChanged: (command: Command) -> Unit) {
+        select(
+            options = Automation.commandOptions,
+            selected = Automation.commandOptions.find { it.value == command.key },
+            onSelected = { onChanged.invoke(Command.getCommand(it.value)) },
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        operationField(command.key, command.operation) {
+            val newCommand = Command.getCommand(command.key)
+            newCommand.operation = it
+            onChanged.invoke(newCommand)
         }
     }
 
@@ -238,7 +250,8 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
         select(
             options = Command.getOperationOptions(commandKey),
             selected = Command.getOperationOptions(commandKey).find { it.value == operation.key },
-            onSelected = { onChanged.invoke(Operation.getOperation(it.value)) }
+            onSelected = { onChanged.invoke(Operation.getOperation(it.value)) },
+            modifier = Modifier.padding(bottom = 8.dp)
         )
         operation.arguments.forEachIndexed { index, argument ->
             argumentField(argument) {
@@ -266,7 +279,7 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
             ArgumentType.Static -> {
             }
             ArgumentType.Text -> TextField(
-                label = { Text("Name") },
+                label = { Text(text = argument.label) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = false,
                 value = argument.value,
