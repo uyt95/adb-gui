@@ -163,7 +163,7 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
     ) {
         val name = remember { mutableStateOf(connection?.name ?: "") }
         val address = remember { mutableStateOf(connection?.address ?: "") }
-        val addressValid = remember { mutableStateOf(false) }
+        val addressValid = remember { mutableStateOf(true) }
         val nameFocusRequester = remember { FocusRequester() }
         val addressFocusRequester = remember { FocusRequester() }
 

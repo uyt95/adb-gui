@@ -31,7 +31,7 @@ object ConnectionsService {
     }
 
     fun setConnections(value: List<Connection>) {
-        mutableConnections.value = value
+        mutableConnections.value = value.sortedBy { it.name.toLowerCase() }
         val json = connectionListAdapter.toJson(value)
         preferences.put(KEY_CONNECTIONS, json)
     }

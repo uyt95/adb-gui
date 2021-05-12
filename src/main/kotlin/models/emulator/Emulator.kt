@@ -1,4 +1,4 @@
-package models
+package models.emulator
 
 data class Emulator(
     val name: String,

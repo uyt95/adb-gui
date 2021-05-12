@@ -6,8 +6,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import models.Emulator
-import models.EmulatorParameters
+import models.emulator.Emulator
+import models.emulator.EmulatorParameters
 import util.ErrorHelper
 import util.ExecuteHelper
 import util.JsonHelper
