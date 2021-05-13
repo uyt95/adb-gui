@@ -32,4 +32,32 @@ object ExecuteHelper {
             execute(SettingsService.adbPath, args)
         }
     }
+
+    fun executeAsync(command: String, arguments: List<String>, onData: (data: String) -> Unit, onCompleted: () -> Unit, onError: (message: String) -> Unit) {
+        val process = ProcessBuilder(listOf(command) + arguments)
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
+
+        try {
+            val reader = process.inputStream.bufferedReader()
+            var line: String?
+            do {
+                line = reader.readLine()
+                if (line != null) {
+                    onData.invoke(line)
+                }
+            } while (line != null)
+
+            val exitCode = process.waitFor()
+            if (exitCode == 0) {
+                onCompleted.invoke()
+            } else {
+                val errorText = process.errorStream.bufferedReader().use(BufferedReader::readText)
+                onError.invoke(errorText)
+            }
+        } catch (t: Throwable) {
+            onError.invoke(t.message ?: "Unknown execution error")
+        }
+    }
 }

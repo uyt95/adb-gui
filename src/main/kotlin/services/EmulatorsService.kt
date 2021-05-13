@@ -56,13 +56,33 @@ object EmulatorsService {
                 if (emulator.parameters.writableSystem) {
                     arguments.add("-writable-system")
                 }
-                val response = ExecuteHelper.execute(SettingsService.emulatorPath, arguments)
-                if (!response.contains("boot completed")) {
-                    throw Throwable(response)
-                }
+                var bootCompleted = false
+                ExecuteHelper.executeAsync(
+                    command = SettingsService.emulatorPath,
+                    arguments = arguments,
+                    onData = { data ->
+                        if (data.contains("boot completed")) {
+                            bootCompleted = true
+                            DevicesService.loadDevices()
+                        }
+                    },
+                    onCompleted = {
+                        if (!bootCompleted) {
+                            DevicesService.loadDevices()
+                            ErrorHelper.handleThrowable(Throwable("Failed to start emulator"))
+                        }
+                    },
+                    onError = { message ->
+                        DevicesService.loadDevices()
+                        if (message.isEmpty()) {
+                            ErrorHelper.handleThrowable(Throwable("Failed to start emulator"))
+                        } else {
+                            ErrorHelper.handleThrowable(Throwable(message))
+                        }
+                    }
+                )
             } catch (t: Throwable) {
                 ErrorHelper.handleThrowable(t)
-            } finally {
                 DevicesService.loadDevices()
             }
         }
