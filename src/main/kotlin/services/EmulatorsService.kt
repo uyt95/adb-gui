@@ -15,8 +15,8 @@ import java.util.prefs.Preferences
 
 @ExperimentalCoroutinesApi
 object EmulatorsService {
-    private const val KEY_EMULATOR = "emulator";
-    private const val KEY_PARAMETERS = "parameters";
+    private const val KEY_EMULATOR = "emulator"
+    private const val KEY_PARAMETERS = "parameters"
 
     private val preferences = Preferences.userRoot().node("emulators")
     private val emulatorParametersAdapter = JsonHelper.moshi.adapter(EmulatorParameters::class.java)
