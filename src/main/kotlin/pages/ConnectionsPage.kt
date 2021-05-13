@@ -21,11 +21,13 @@ import androidx.compose.ui.unit.dp
 import components.Dialog
 import components.Page
 import components.table
+import components.vectorIconButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import models.Connection
 import models.TableColumn
+import services.AutomationService
 import services.ConnectionsService
 import services.DevicesService
 import util.IpAddressHelper
@@ -63,31 +65,31 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                 },
                 TableColumn("Actions", contentAlignment = Alignment.Center) {
                     Row {
-                        Button(modifier = Modifier.padding(end = 4.dp), onClick = {
+                        vectorIconButton(name = "outline_edit_24", contentDescription = "edit", modifier = Modifier.padding(end = 4.dp)) {
                             scope.launch {
                                 editDialogConnection.value = it
                                 showEditDialog.value = true
                             }
-                        }) { Image(imageVector = vectorXmlResource("icons/outline_edit_24.xml"), contentDescription = "edit") }
+                        }
                         if (devices.any { device -> device.address == it.address }) {
-                            Button(modifier = Modifier.padding(end = 4.dp), onClick = {
+                            vectorIconButton(name = "outline_link_off_24", contentDescription = "disconnect", modifier = Modifier.padding(end = 4.dp)) {
                                 scope.launch {
                                     ConnectionsService.disconnect(it)
                                 }
-                            }) { Image(imageVector = vectorXmlResource("icons/outline_link_off_24.xml"), contentDescription = "disconnect") }
+                            }
                         } else {
-                            Button(modifier = Modifier.padding(end = 4.dp), onClick = {
+                            vectorIconButton(name = "outline_link_24", contentDescription = "connect", modifier = Modifier.padding(end = 4.dp)) {
                                 scope.launch {
                                     ConnectionsService.connect(it)
                                 }
-                            }) { Image(imageVector = vectorXmlResource("icons/outline_link_24.xml"), contentDescription = "connect") }
+                            }
                         }
-                        Button(onClick = {
+                        vectorIconButton(name = "outline_delete_24", contentDescription = "remove") {
                             scope.launch {
                                 confirmDeleteDialogConnection.value = it
                                 showConfirmDeleteDialog.value = true
                             }
-                        }) { Image(imageVector = vectorXmlResource("icons/outline_delete_24.xml"), contentDescription = "remove") }
+                        }
                     }
                 }
             ),

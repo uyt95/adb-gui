@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.vectorXmlResource
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import models.SelectOption
 import services.ConnectionsService
 import services.DevicesService
@@ -36,8 +37,8 @@ fun deviceSelector() {
             onSelected = { option -> DevicesService.setActiveDevice(option.value) },
             modifier = Modifier.align(Alignment.CenterVertically)
         )
-        Button({ DevicesService.loadDevices() }, modifier = Modifier.align(Alignment.CenterVertically)) {
-            Image(imageVector = vectorXmlResource("icons/outline_refresh_24.xml"), contentDescription = "refresh")
+        vectorIconButton(name = "outline_refresh_24", contentDescription = "refresh", modifier = Modifier.align(Alignment.CenterVertically)) {
+            DevicesService.loadDevices()
         }
     }
 }

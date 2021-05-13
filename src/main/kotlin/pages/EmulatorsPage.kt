@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import components.Dialog
 import components.Page
 import components.table
+import components.vectorIconButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -40,17 +41,17 @@ class EmulatorsPage : Page("emulators", "Emulators") {
                 TableColumn("Name") { Text(text = it.name) },
                 TableColumn("Actions", contentAlignment = Alignment.Center) {
                     Row {
-                        Button(modifier = Modifier.padding(end = 4.dp), onClick = {
+                        vectorIconButton(name = "outline_play_arrow_24", contentDescription = "start", modifier = Modifier.padding(end = 4.dp)) {
                             scope.launch {
                                 EmulatorsService.startEmulator(it)
                             }
-                        }) { Image(imageVector = vectorXmlResource("icons/outline_play_arrow_24.xml"), contentDescription = "start") }
-                        Button(onClick = {
+                        }
+                        vectorIconButton(name = "outline_settings_24", contentDescription = "edit parameters") {
                             scope.launch {
                                 editDialogEmulator.value = it
                                 showEditDialog.value = true
                             }
-                        }) { Image(imageVector = vectorXmlResource("icons/outline_settings_24.xml"), contentDescription = "edit parameters") }
+                        }
                     }
                 }
             ),

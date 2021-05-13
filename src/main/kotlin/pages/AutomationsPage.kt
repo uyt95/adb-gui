@@ -48,23 +48,23 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
                 TableColumn("Name") { Text(text = it.name) },
                 TableColumn("Actions", contentAlignment = Alignment.Center) {
                     Row {
-                        Button(modifier = Modifier.padding(end = 4.dp), onClick = {
+                        vectorIconButton(name = "outline_play_arrow_24", contentDescription = "start", modifier = Modifier.padding(end = 4.dp)) {
                             scope.launch {
                                 AutomationService.runAutomation(activeDevice, it)
                             }
-                        }) { Image(imageVector = vectorXmlResource("icons/outline_play_arrow_24.xml"), contentDescription = "start") }
-                        Button(modifier = Modifier.padding(end = 4.dp), onClick = {
+                        }
+                        vectorIconButton(name = "outline_edit_24", contentDescription = "edit", modifier = Modifier.padding(end = 4.dp)) {
                             scope.launch {
                                 editDialogAutomation.value = it
                                 showEditDialog.value = true
                             }
-                        }) { Image(imageVector = vectorXmlResource("icons/outline_edit_24.xml"), contentDescription = "edit") }
-                        Button(onClick = {
+                        }
+                        vectorIconButton(name = "outline_delete_24", contentDescription = "remove") {
                             scope.launch {
                                 confirmDeleteDialogAutomation.value = it
                                 showConfirmDeleteDialog.value = true
                             }
-                        }) { Image(imageVector = vectorXmlResource("icons/outline_delete_24.xml"), contentDescription = "remove") }
+                        }
                     }
                 }
             ),

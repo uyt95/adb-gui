@@ -9,11 +9,13 @@ import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import components.Page
+import components.vectorIconButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -32,19 +34,24 @@ class KeyboardPage : Page("keyboard", "Keyboard") {
 
             Row {
                 Column {
-                    Button(modifier = Modifier.padding(bottom = 8.dp), enabled = activeDevice != null, onClick = {
+                    vectorIconButton(
+                        name = "outline_backspace_24",
+                        contentDescription = "backspace",
+                        enabled = activeDevice != null,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
                         activeDevice?.let { device ->
                             KeyboardService.sendBackspaceKey(device)
                         }
-                    }) {
-                        Image(imageVector = vectorXmlResource("icons/outline_backspace_24.xml"), contentDescription = "backspace")
                     }
-                    Button(enabled = activeDevice != null, onClick = {
+                    vectorIconButton(
+                        name = "outline_keyboard_tab_24",
+                        contentDescription = "tab",
+                        enabled = activeDevice != null
+                    ) {
                         activeDevice?.let { device ->
                             KeyboardService.sendTabKey(device)
                         }
-                    }) {
-                        Image(imageVector = vectorXmlResource("icons/outline_keyboard_tab_24.xml"), contentDescription = "tab")
                     }
                 }
                 TextField(
@@ -54,7 +61,11 @@ class KeyboardPage : Page("keyboard", "Keyboard") {
                     value = inputState.value,
                     onValueChange = { inputState.value = it }
                 )
-                Button(enabled = activeDevice != null && inputState.value.text.isNotEmpty(), onClick = {
+                vectorIconButton(
+                    name = "outline_send_24",
+                    contentDescription = "send",
+                    enabled = activeDevice != null && inputState.value.text.isNotEmpty()
+                ) {
                     activeDevice?.let { device ->
                         KeyboardService.sendText(device, inputState.value.text) {
                             scope.launch {
@@ -62,8 +73,6 @@ class KeyboardPage : Page("keyboard", "Keyboard") {
                             }
                         }
                     }
-                }) {
-                    Image(imageVector = vectorXmlResource("icons/outline_send_24.xml"), contentDescription = "send")
                 }
             }
         }

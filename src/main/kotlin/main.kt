@@ -10,6 +10,7 @@ import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.dp
 import components.deviceSelector
 import components.scrollView
+import components.vectorIconButton
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import services.DevicesService
@@ -46,12 +47,15 @@ fun main() = Window(title = appTitle) {
                             Box(modifier = Modifier.align(Alignment.CenterVertically).padding(end = 8.dp)) {
                                 deviceSelector()
                             }
-                            Button(modifier = Modifier.align(Alignment.CenterVertically), enabled = activeDevice != null, onClick = {
+                            vectorIconButton(
+                                name = "outline_power_settings_new_24",
+                                contentDescription = "reboot",
+                                enabled = activeDevice != null,
+                                modifier = Modifier.align(Alignment.CenterVertically)
+                            ) {
                                 activeDevice?.let { device ->
                                     DevicesService.rebootDevice(device)
                                 }
-                            }) {
-                                Image(imageVector = vectorXmlResource("icons/outline_power_settings_new_24.xml"), contentDescription = "reboot")
                             }
                         }
                     })
