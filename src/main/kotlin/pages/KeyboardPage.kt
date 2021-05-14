@@ -1,17 +1,17 @@
 package pages
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.vectorXmlResource
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeysSet
+import androidx.compose.ui.input.key.plus
+import androidx.compose.ui.input.key.shortcuts
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import components.Page
@@ -27,11 +27,26 @@ class KeyboardPage : Page("keyboard", "Keyboard") {
     @Composable
     override fun renderContent(mainScope: CoroutineScope) {
         val activeDevice by DevicesService.activeDevice.collectAsState()
+        val scope = rememberCoroutineScope()
+        val inputState = remember { mutableStateOf(TextFieldValue("")) }
 
-        Column {
-            val scope = rememberCoroutineScope()
-            val inputState = remember { mutableStateOf(TextFieldValue("")) }
+        fun sendKeyboard() {
+            activeDevice?.let { device ->
+                if (inputState.value.text.isNotEmpty()) {
+                    KeyboardService.sendText(device, inputState.value.text) {
+                        scope.launch {
+                            inputState.value = TextFieldValue("")
+                        }
+                    }
+                }
+            }
+        }
 
+        Column(modifier = Modifier.shortcuts {
+            on(Key.CtrlLeft + Key.Enter) {
+                sendKeyboard()
+            }
+        }) {
             Row {
                 Column {
                     vectorIconButton(
@@ -65,15 +80,7 @@ class KeyboardPage : Page("keyboard", "Keyboard") {
                     name = "outline_send_24",
                     contentDescription = "send",
                     enabled = activeDevice != null && inputState.value.text.isNotEmpty()
-                ) {
-                    activeDevice?.let { device ->
-                        KeyboardService.sendText(device, inputState.value.text) {
-                            scope.launch {
-                                inputState.value = TextFieldValue("")
-                            }
-                        }
-                    }
-                }
+                ) { sendKeyboard() }
             }
         }
     }
