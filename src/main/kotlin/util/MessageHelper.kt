@@ -4,18 +4,22 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-object ErrorHelper {
+object MessageHelper {
     private var hideJob: Job? = null
     private val mutex: Mutex = Mutex()
 
     var mainErrorObserver: ((error: String?) -> Unit)? = null
 
-    fun handleThrowable(t: Throwable) {
+    fun showThrowableMessage(t: Throwable) {
+        t.message?.let { message ->
+            showMessage(message)
+        }
+    }
+
+    fun showMessage(message: String) {
         CoroutineScope(Dispatchers.Default).launch {
             mutex.withLock {
-                t.message?.let { message ->
-                    mainErrorObserver?.invoke(message)
-                }
+                mainErrorObserver?.invoke(message)
                 hideJob?.cancel()
                 hideJob = CoroutineScope(Dispatchers.Default).launch {
                     mutex.withLock {

@@ -1,12 +1,10 @@
 import androidx.compose.desktop.DesktopTheme
 import androidx.compose.desktop.Window
-import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.dp
 import components.deviceSelector
 import components.scrollView
@@ -14,7 +12,7 @@ import components.vectorIconButton
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import services.DevicesService
-import util.ErrorHelper
+import util.MessageHelper
 import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
 
@@ -28,7 +26,7 @@ fun main() = Window(title = appTitle) {
     var activeRoute by remember { mutableStateOf(Router.pages.first().route) }
 
     var errorMessage: String? by remember { mutableStateOf(null) }
-    ErrorHelper.mainErrorObserver = { value ->
+    MessageHelper.mainErrorObserver = { value ->
         scope.launch {
             errorMessage = value
         }

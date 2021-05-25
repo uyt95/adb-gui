@@ -4,7 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import models.Device
-import util.ErrorHelper
+import util.MessageHelper
 import util.ExecuteHelper
 
 object KeyboardService {
@@ -16,7 +16,7 @@ object KeyboardService {
                     throw Throwable(response)
                 }
             } catch (t: Throwable) {
-                ErrorHelper.handleThrowable(t)
+                MessageHelper.showThrowableMessage(t)
             }
         }
     }
@@ -29,7 +29,7 @@ object KeyboardService {
                     throw Throwable(response)
                 }
             } catch (t: Throwable) {
-                ErrorHelper.handleThrowable(t)
+                MessageHelper.showThrowableMessage(t)
             }
         }
     }
@@ -43,7 +43,7 @@ object KeyboardService {
                 }
                 successCallback.invoke()
             } catch (t: Throwable) {
-                ErrorHelper.handleThrowable(t)
+                MessageHelper.showThrowableMessage(t)
             }
         }
     }

@@ -5,7 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import models.Device
 import models.RemoteControlButton
-import util.ErrorHelper
+import util.MessageHelper
 import util.ExecuteHelper
 
 object RemoteControlService {
@@ -17,7 +17,7 @@ object RemoteControlService {
                     throw Throwable(response)
                 }
             } catch (t: Throwable) {
-                ErrorHelper.handleThrowable(t)
+                MessageHelper.showThrowableMessage(t)
             }
         }
     }

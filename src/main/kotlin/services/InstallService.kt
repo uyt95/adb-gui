@@ -5,7 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import models.Device
 import models.InstallMode
-import util.ErrorHelper
+import util.MessageHelper
 import util.ExecuteHelper
 
 object InstallService {
@@ -17,7 +17,7 @@ object InstallService {
                     InstallMode.PRIV_APP -> installPrivApp(device, path, callback)
                 }
             } catch (t: Throwable) {
-                ErrorHelper.handleThrowable(t)
+                MessageHelper.showThrowableMessage(t)
                 callback.invoke(false)
             }
         }

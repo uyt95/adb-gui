@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import models.emulator.Emulator
 import models.emulator.EmulatorParameters
-import util.ErrorHelper
+import util.MessageHelper
 import util.ExecuteHelper
 import util.JsonHelper
 import java.util.prefs.Preferences
@@ -41,7 +41,7 @@ object EmulatorsService {
                 mutableEmulators.value = emulators
             } catch (t: Throwable) {
                 mutableEmulators.value = emptyList()
-                ErrorHelper.handleThrowable(t)
+                MessageHelper.showThrowableMessage(t)
             }
         }
     }
@@ -69,20 +69,20 @@ object EmulatorsService {
                     onCompleted = {
                         if (!bootCompleted) {
                             DevicesService.loadDevices()
-                            ErrorHelper.handleThrowable(Throwable("Failed to start emulator"))
+                            MessageHelper.showThrowableMessage(Throwable("Failed to start emulator"))
                         }
                     },
                     onError = { message ->
                         DevicesService.loadDevices()
                         if (message.isEmpty()) {
-                            ErrorHelper.handleThrowable(Throwable("Failed to start emulator"))
+                            MessageHelper.showThrowableMessage(Throwable("Failed to start emulator"))
                         } else {
-                            ErrorHelper.handleThrowable(Throwable(message))
+                            MessageHelper.showThrowableMessage(Throwable(message))
                         }
                     }
                 )
             } catch (t: Throwable) {
-                ErrorHelper.handleThrowable(t)
+                MessageHelper.showThrowableMessage(t)
                 DevicesService.loadDevices()
             }
         }

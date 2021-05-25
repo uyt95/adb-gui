@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import models.Device
-import util.ErrorHelper
+import util.MessageHelper
 import util.ExecuteHelper
 
 @ExperimentalCoroutinesApi
@@ -45,7 +45,7 @@ object DevicesService {
                 mutableDevices.value = emptyList()
                 mutableActiveDevice.value = null
 
-                ErrorHelper.handleThrowable(t)
+                MessageHelper.showThrowableMessage(t)
             }
         }
     }
@@ -62,7 +62,7 @@ object DevicesService {
                     throw Throwable(response)
                 }
             } catch (t: Throwable) {
-                ErrorHelper.handleThrowable(t)
+                MessageHelper.showThrowableMessage(t)
             } finally {
                 loadDevices()
             }

@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import models.Connection
-import util.ErrorHelper
+import util.MessageHelper
 import util.ExecuteHelper
 import util.JsonHelper
 import java.util.prefs.Preferences
@@ -44,7 +44,7 @@ object ConnectionsService {
                     throw Throwable(result)
                 }
             } catch (t: Throwable) {
-                ErrorHelper.handleThrowable(t)
+                MessageHelper.showThrowableMessage(t)
             } finally {
                 DevicesService.loadDevices()
             }
@@ -62,7 +62,7 @@ object ConnectionsService {
                     throw Throwable(result)
                 }
             } catch (t: Throwable) {
-                ErrorHelper.handleThrowable(t)
+                MessageHelper.showThrowableMessage(t)
             } finally {
                 DevicesService.loadDevices()
             }

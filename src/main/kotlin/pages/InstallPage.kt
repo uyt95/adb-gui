@@ -18,6 +18,7 @@ import models.SelectOption
 import services.DevicesService
 import services.InstallService
 import util.FileHelper
+import util.MessageHelper
 
 @ExperimentalCoroutinesApi
 class InstallPage : Page("install", "Install", canDndFiles = true) {
@@ -66,7 +67,10 @@ class InstallPage : Page("install", "Install", canDndFiles = true) {
                     Button(enabled = filePath.value.isNotEmpty() && activeDevice != null, onClick = {
                         activeDevice?.let { device ->
                             installing.value = true
-                            InstallService.install(device, filePath.value, mode.value.value) {
+                            InstallService.install(device, filePath.value, mode.value.value) { isSuccess ->
+                                if (isSuccess) {
+                                    MessageHelper.showMessage("Installed successfully")
+                                }
                                 installing.value = false
                             }
                         }
