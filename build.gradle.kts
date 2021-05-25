@@ -34,11 +34,11 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
 
-            packageName = "ADB-GUI"
+            packageName = "adb-gui"
             packageVersion = "1.0.0"
 
             linux {
-                iconFile.set(project.file("icon.png"))
+                iconFile.set(project.file("src/main/resources/icon.png"))
             }
         }
     }

@@ -21,7 +21,7 @@ const val appTitle = "ADB GUI"
 @ExperimentalCoroutinesApi
 @ExperimentalComposeApi
 @ExperimentalMaterialApi
-fun main() = Window(title = appTitle) {
+fun main() = Window(title = appTitle, icon = getWindowIcon()) {
     val scope = rememberCoroutineScope()
     var activeRoute by remember { mutableStateOf(Router.pages.first().route) }
 
@@ -83,5 +83,15 @@ fun main() = Window(title = appTitle) {
                 }
             }
         }
+    }
+}
+
+fun getWindowIcon(): BufferedImage? {
+    return try {
+        val classLoader = Thread.currentThread().contextClassLoader
+        val resource = classLoader.getResource("icon.png")
+        ImageIO.read(resource)
+    } catch (t: Throwable) {
+        throw t
     }
 }
