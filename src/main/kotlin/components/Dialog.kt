@@ -9,27 +9,32 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.WindowSize
+import androidx.compose.ui.window.rememberDialogState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+@ExperimentalComposeUiApi
 object Dialog {
     @Composable
     fun renderDialog(
         scope: CoroutineScope,
         show: MutableState<Boolean>,
         title: String,
-        size: IntSize = IntSize(400, 250),
+        size: WindowSize = WindowSize(400.dp, 250.dp),
         content: @Composable () -> Unit
     ) {
         if (show.value) {
+            val state = rememberDialogState(size = size)
+
             Dialog(
-                onDismissRequest = { scope.launch { show.value = false } },
-                properties = DialogProperties(title = title, size = size)
+                state = state,
+                title = title,
+                onCloseRequest = { scope.launch { show.value = false } }
             ) {
                 MaterialTheme(Palette.lightColors) {
                     DesktopTheme {

@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.ExperimentalUnitApi
 import androidx.compose.ui.unit.dp
 import components.deviceSelector
 import components.scrollView
@@ -18,6 +20,8 @@ import javax.imageio.ImageIO
 
 const val appTitle = "ADB GUI"
 
+@ExperimentalUnitApi
+@ExperimentalComposeUiApi
 @ExperimentalCoroutinesApi
 @ExperimentalComposeApi
 @ExperimentalMaterialApi

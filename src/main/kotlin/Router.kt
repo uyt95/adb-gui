@@ -1,10 +1,14 @@
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ExperimentalComposeApi
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.unit.ExperimentalUnitApi
 import components.Page
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import pages.*
 
+@ExperimentalUnitApi
+@ExperimentalComposeUiApi
 @ExperimentalCoroutinesApi
 @ExperimentalComposeApi
 object Router {

@@ -9,11 +9,13 @@ import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusOrder
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.vectorXmlResource
+import androidx.compose.ui.unit.ExperimentalUnitApi
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
@@ -30,6 +32,8 @@ import services.ConnectionsService
 import services.DevicesService
 import util.IpAddressHelper
 
+@ExperimentalUnitApi
+@ExperimentalComposeUiApi
 @ExperimentalCoroutinesApi
 @ExperimentalComposeApi
 class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {

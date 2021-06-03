@@ -1,16 +1,14 @@
 package pages
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.Button
 import androidx.compose.material.Checkbox
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.dp
 import components.Dialog
 import components.Page
@@ -19,10 +17,11 @@ import components.vectorIconButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import models.emulator.Emulator
 import models.TableColumn
+import models.emulator.Emulator
 import services.EmulatorsService
 
+@ExperimentalComposeUiApi
 @ExperimentalCoroutinesApi
 class EmulatorsPage : Page("emulators", "Emulators") {
     @Composable

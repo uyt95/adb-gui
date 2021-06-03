@@ -9,10 +9,12 @@ import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.vectorXmlResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.WindowSize
 import components.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,6 +28,7 @@ import models.proxy.SocketType
 import services.DevicesService
 import services.ProxyService
 
+@ExperimentalComposeUiApi
 @ExperimentalCoroutinesApi
 class ProxiesPage : Page("proxies", "Proxies", fab = Fab("+")) {
     @Composable
@@ -96,7 +99,7 @@ class ProxiesPage : Page("proxies", "Proxies", fab = Fab("+")) {
             savedProxies
         )
 
-        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add proxy", size = IntSize(400, 300), content = {
+        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add proxy", size = WindowSize(400.dp, 300.dp), content = {
             renderEditProxyDialogContent(
                 proxy = null,
                 onSave = { _, type, from, to ->
@@ -116,7 +119,7 @@ class ProxiesPage : Page("proxies", "Proxies", fab = Fab("+")) {
             )
         })
 
-        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit proxy", size = IntSize(400, 300), content = {
+        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit proxy", size = WindowSize(400.dp, 300.dp), content = {
             renderEditProxyDialogContent(
                 proxy = editDialogProxy.value,
                 onSave = { proxy, type, from, to ->

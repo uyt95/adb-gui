@@ -7,11 +7,12 @@ import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusOrder
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.WindowSize
 import components.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,6 +22,7 @@ import models.automation.*
 import services.AutomationService
 import services.DevicesService
 
+@ExperimentalComposeUiApi
 @ExperimentalComposeApi
 @ExperimentalCoroutinesApi
 class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
@@ -69,7 +71,7 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
             automations
         )
 
-        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add automation", size = IntSize(600, 400), content = {
+        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add automation", size = WindowSize(400.dp, 300.dp), content = {
             renderEditAutomationDialogContent(
                 automation = null,
                 onSave = { _, name, commands ->
@@ -89,7 +91,7 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
             )
         })
 
-        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit automation", size = IntSize(600, 400), content = {
+        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit automation", size = WindowSize(400.dp, 300.dp), content = {
             renderEditAutomationDialogContent(
                 automation = editDialogAutomation.value,
                 onSave = { automation, name, commands ->
