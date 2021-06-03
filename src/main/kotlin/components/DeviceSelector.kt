@@ -1,6 +1,5 @@
 package components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.Button
 import androidx.compose.runtime.Composable

@@ -8,7 +8,7 @@ import pages.*
 @ExperimentalCoroutinesApi
 @ExperimentalComposeApi
 object Router {
-    val pages: List<Page> = listOf(ConnectionsPage(), EmulatorsPage(), KeyboardPage(), RemoteControlPage(), InstallPage(), AutomationsPage(), SettingsPage())
+    val pages: List<Page> = listOf(ConnectionsPage(), EmulatorsPage(), KeyboardPage(), RemoteControlPage(), InstallPage(), AutomationsPage(), ProxiesPage(), SettingsPage())
 
     @Composable
     fun renderPage(route: String, mainScope: CoroutineScope) {
