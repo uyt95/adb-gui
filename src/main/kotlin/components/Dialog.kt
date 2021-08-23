@@ -11,6 +11,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.WindowSize
@@ -25,7 +26,7 @@ object Dialog {
         scope: CoroutineScope,
         show: MutableState<Boolean>,
         title: String,
-        size: WindowSize = WindowSize(400.dp, 250.dp),
+        size: WindowSize = WindowSize(400.dp, Dp.Unspecified),
         content: @Composable () -> Unit
     ) {
         if (show.value) {
@@ -38,7 +39,7 @@ object Dialog {
             ) {
                 MaterialTheme(Palette.lightColors) {
                     DesktopTheme {
-                        Box(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
                             content()
                         }
                     }

@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusOrder
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.vectorXmlResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.ExperimentalUnitApi
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
@@ -60,9 +60,9 @@ class ConnectionsPage : Page("connections", "Connections", fab = Fab("+")) {
                 TableColumn("Address") { Text(text = it.address) },
                 TableColumn("Status", contentAlignment = Alignment.Center) {
                     if (devices.any { device -> device.address == it.address }) {
-                        Image(imageVector = vectorXmlResource("icons/outline_check_24.xml"), contentDescription = "connected")
+                        Image(painter = painterResource("icons/outline_check_24.xml"), contentDescription = "connected")
                     } else {
-                        Image(imageVector = vectorXmlResource("icons/outline_close_24.xml"), contentDescription = "disconnected")
+                        Image(painter = painterResource("icons/outline_close_24.xml"), contentDescription = "disconnected")
                     }
                 },
                 TableColumn("Actions", contentAlignment = Alignment.Center) {

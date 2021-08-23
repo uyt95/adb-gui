@@ -7,11 +7,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.*
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeysSet
-import androidx.compose.ui.input.key.plus
-import androidx.compose.ui.input.key.shortcuts
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import components.Page
@@ -22,6 +20,7 @@ import kotlinx.coroutines.launch
 import services.DevicesService
 import services.KeyboardService
 
+@ExperimentalComposeUiApi
 @ExperimentalCoroutinesApi
 class KeyboardPage : Page("keyboard", "Keyboard") {
     @Composable
@@ -42,10 +41,17 @@ class KeyboardPage : Page("keyboard", "Keyboard") {
             }
         }
 
-        Column(modifier = Modifier.shortcuts {
-            on(Key.CtrlLeft + Key.Enter) {
-                sendKeyboard()
+        Column(modifier = Modifier.onPreviewKeyEvent { event ->
+            activeDevice?.let { device ->
+                if (event.isCtrlPressed && event.type == KeyEventType.KeyDown) {
+                    when (event.key) {
+                        Key.Enter -> sendKeyboard()
+                        Key.Tab -> KeyboardService.sendTabKey(device)
+                        Key.Backspace -> KeyboardService.sendBackspaceKey(device)
+                    }
+                }
             }
+            false
         }) {
             Row {
                 Column {

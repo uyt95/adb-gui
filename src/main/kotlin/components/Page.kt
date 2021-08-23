@@ -1,11 +1,7 @@
 package components
 
-import androidx.compose.desktop.AppManager
-import androidx.compose.foundation.VerticalScrollbar
+import WindowManager
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Divider
 import androidx.compose.material.FloatingActionButton
 import androidx.compose.material.MaterialTheme
@@ -31,7 +27,7 @@ abstract class Page(val route: String, val title: String, val fab: Fab? = null, 
 
     @Composable
     protected open fun fileDragAndDrop() {
-        AppManager.windows.first().window.contentPane.dropTarget = object : DropTarget() {
+        WindowManager.appWindow?.contentPane?.dropTarget = object : DropTarget() {
             override fun isActive(): Boolean {
                 return canDndFiles
             }

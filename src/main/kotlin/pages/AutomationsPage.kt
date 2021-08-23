@@ -71,7 +71,7 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
             automations
         )
 
-        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add automation", size = WindowSize(400.dp, 300.dp), content = {
+        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add automation", content = {
             renderEditAutomationDialogContent(
                 automation = null,
                 onSave = { _, name, commands ->
@@ -91,7 +91,7 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
             )
         })
 
-        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit automation", size = WindowSize(400.dp, 300.dp), content = {
+        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit automation", content = {
             renderEditAutomationDialogContent(
                 automation = editDialogAutomation.value,
                 onSave = { automation, name, commands ->

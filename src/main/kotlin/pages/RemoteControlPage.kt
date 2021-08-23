@@ -8,7 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.vectorXmlResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import components.Page
 import kotlinx.coroutines.CoroutineScope
@@ -53,7 +53,7 @@ class RemoteControlPage : Page("remote-control", "Remote control") {
                                     }
                                 ) {
                                     button.icon?.let { icon ->
-                                        Image(imageVector = vectorXmlResource("icons/$icon.xml"), contentDescription = button.description)
+                                        Image(painter = painterResource("icons/$icon.xml"), contentDescription = button.description)
                                     }
                                 }
                             }

@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.vectorXmlResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -17,6 +17,6 @@ fun vectorIconButton(modifier: Modifier? = null, name: String, contentDescriptio
         enabled = enabled,
         onClick = onClick
     ) {
-        Image(imageVector = vectorXmlResource("icons/$name.xml"), contentDescription = contentDescription)
+        Image(painter = painterResource("icons/$name.xml"), contentDescription = contentDescription)
     }
 }

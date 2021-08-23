@@ -11,18 +11,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.vectorXmlResource
-import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.WindowSize
 import components.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import models.SelectOption
 import models.TableColumn
-import models.proxy.ProxyType
 import models.proxy.Proxy
+import models.proxy.ProxyType
 import models.proxy.Socket
 import models.proxy.SocketType
 import services.DevicesService
@@ -57,9 +55,9 @@ class ProxiesPage : Page("proxies", "Proxies", fab = Fab("+")) {
                 TableColumn("To") { Text(text = "${it.to.type.id} ${it.to.name}") },
                 TableColumn("Status", contentAlignment = Alignment.Center) { proxy ->
                     if (adbProxies.any { proxy == it }) {
-                        Image(imageVector = vectorXmlResource("icons/outline_check_24.xml"), contentDescription = "connected")
+                        Image(painter = painterResource("icons/outline_check_24.xml"), contentDescription = "connected")
                     } else {
-                        Image(imageVector = vectorXmlResource("icons/outline_close_24.xml"), contentDescription = "disconnected")
+                        Image(painter = painterResource("icons/outline_close_24.xml"), contentDescription = "disconnected")
                     }
                 },
                 TableColumn("Actions") { proxy ->
@@ -99,7 +97,7 @@ class ProxiesPage : Page("proxies", "Proxies", fab = Fab("+")) {
             savedProxies
         )
 
-        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add proxy", size = WindowSize(400.dp, 300.dp), content = {
+        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add proxy", content = {
             renderEditProxyDialogContent(
                 proxy = null,
                 onSave = { _, type, from, to ->
@@ -119,7 +117,7 @@ class ProxiesPage : Page("proxies", "Proxies", fab = Fab("+")) {
             )
         })
 
-        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit proxy", size = WindowSize(400.dp, 300.dp), content = {
+        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit proxy", content = {
             renderEditProxyDialogContent(
                 proxy = editDialogProxy.value,
                 onSave = { proxy, type, from, to ->
