@@ -17,7 +17,14 @@ import java.awt.dnd.DropTarget
 import java.awt.dnd.DropTargetDropEvent
 import java.io.File
 
-abstract class Page(val route: String, val title: String, val fab: Fab? = null, private val canDndFiles: Boolean = false) {
+abstract class Page(
+    val route: String,
+    val title: String,
+    val fab: Fab? = null,
+    private val canDndFiles:
+    Boolean = false,
+    private val scrollable: Boolean = true
+) {
     data class Fab(val text: String, var onClick: (() -> Unit)? = null)
 
     protected var handleDndFiles: ((paths: List<String>) -> Unit)? = null
@@ -53,8 +60,14 @@ abstract class Page(val route: String, val title: String, val fab: Fab? = null, 
             }
 
             Box(modifier = Modifier.fillMaxSize()) {
-                scrollView {
-                    renderContent(mainScope)
+                if (scrollable) {
+                    scrollView {
+                        renderContent(mainScope)
+                    }
+                } else {
+                    Box(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                        renderContent(mainScope)
+                    }
                 }
                 if (fab != null) {
                     FloatingActionButton(onClick = { fab.onClick?.let { it() } }, modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)) {

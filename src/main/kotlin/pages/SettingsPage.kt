@@ -21,6 +21,7 @@ class SettingsPage : Page("settings", "Settings") {
         Column {
             val adbPathState = remember { mutableStateOf(TextFieldValue(SettingsService.adbPath)) }
             val emulatorPathState = remember { mutableStateOf(TextFieldValue(SettingsService.emulatorPath)) }
+            val defaultScreenshotDirectory = remember { mutableStateOf(TextFieldValue(SettingsService.defaultScreenshotDirectory)) }
 
             TextField(
                 label = { Text("ADB path") },
@@ -34,12 +35,22 @@ class SettingsPage : Page("settings", "Settings") {
             )
             TextField(
                 label = { Text("Emulator path") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 singleLine = true,
                 value = emulatorPathState.value,
                 onValueChange = {
                     emulatorPathState.value = it
                     SettingsService.emulatorPath = it.text
+                }
+            )
+            TextField(
+                label = { Text("Default screenshot directory") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                value = defaultScreenshotDirectory.value,
+                onValueChange = {
+                    defaultScreenshotDirectory.value = it
+                    SettingsService.defaultScreenshotDirectory = it.text
                 }
             )
         }

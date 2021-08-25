@@ -6,6 +6,7 @@ object SettingsService {
     private val preferences = Preferences.userRoot().node("settings")
 
     private const val KEY_ADB_PATH = "adb-path"
+    private const val KEY_DEFAULT_SCREENSHOT_DIRECTORY = "default-screenshot-directory"
     private const val KEY_EMULATOR_PATH = "emulator-path"
 
     var adbPath: String
@@ -14,6 +15,14 @@ object SettingsService {
         }
         set(value) {
             preferences.put(KEY_ADB_PATH, value)
+        }
+
+    var defaultScreenshotDirectory: String
+        get() {
+            return preferences.get(KEY_DEFAULT_SCREENSHOT_DIRECTORY, System.getProperty("user.home"))
+        }
+        set(value) {
+            preferences.put(KEY_DEFAULT_SCREENSHOT_DIRECTORY, value)
         }
 
     var emulatorPath: String
