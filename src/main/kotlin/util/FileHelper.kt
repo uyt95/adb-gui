@@ -1,6 +1,5 @@
 package util
 
-import androidx.compose.desktop.AppManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -26,20 +25,49 @@ object FileHelper {
         }
     }
 
+    fun saveDirectoryDialog(callback: (path: String) -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            if (isLinux) {
+                zenitySaveDirectoryDialog(callback)
+            } else {
+                swingSaveDirectoryDialog(callback)
+            }
+        }
+    }
+
     private fun swingOpenFileDialog(callback: (path: String) -> Unit) {
         SwingUtilities.invokeLater {
-            try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
-            } catch (t: Throwable) {
-            }
+            swingSetLookAndFeel()
             try {
                 val fileChooser = JFileChooser()
-                val result = fileChooser.showOpenDialog(AppManager.focusedWindow?.window)
+                val result = fileChooser.showOpenDialog(WindowManager.appWindow)
                 if (result == JFileChooser.APPROVE_OPTION) {
                     callback.invoke(fileChooser.selectedFile.absolutePath.trim())
                 }
             } catch (t: Throwable) {
             }
+        }
+    }
+
+    private fun swingSaveDirectoryDialog(callback: (path: String) -> Unit) {
+        SwingUtilities.invokeLater {
+            swingSetLookAndFeel()
+            try {
+                val fileChooser = JFileChooser()
+                fileChooser.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+                val result = fileChooser.showSaveDialog(WindowManager.appWindow)
+                if (result == JFileChooser.APPROVE_OPTION) {
+                    callback.invoke(fileChooser.selectedFile.absolutePath.trim())
+                }
+            } catch (t: Throwable) {
+            }
+        }
+    }
+
+    private fun swingSetLookAndFeel() {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
+        } catch (t: Throwable) {
         }
     }
 
@@ -53,6 +81,20 @@ object FileHelper {
         } catch (t: Throwable) {
             if (t !is ExecuteHelper.ExecuteError) {
                 swingOpenFileDialog(callback)
+            }
+        }
+    }
+
+    private fun zenitySaveDirectoryDialog(callback: (path: String) -> Unit) {
+        try {
+            var path = ExecuteHelper.execute("zenity", listOf("--file-selection", "--save", "--directory", "--filename=${System.getProperty("user.home")}/"))
+            path = path.trim()
+            if (path.isNotEmpty()) {
+                callback.invoke(path)
+            }
+        } catch (t: Throwable) {
+            if (t !is ExecuteHelper.ExecuteError) {
+                swingSaveDirectoryDialog(callback)
             }
         }
     }
