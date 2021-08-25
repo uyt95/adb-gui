@@ -18,7 +18,10 @@ object ExecuteHelper {
         return if (process.exitValue() == 0) {
             process.inputStream.bufferedReader().use(BufferedReader::readText)
         } else {
-            val errorText = process.errorStream.bufferedReader().use(BufferedReader::readText)
+            var errorText = process.errorStream.bufferedReader().use(BufferedReader::readText)
+            if (errorText.isEmpty()) {
+                errorText = process.inputStream.bufferedReader().use(BufferedReader::readText)
+            }
             throw ExecuteError(errorText)
         }
     }
