@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "me.uyt"
-version = "1.0"
+version = "1.0.0"
 
 val moshi = "1.12.0"
 
@@ -37,7 +37,7 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
 
             packageName = "adb-gui"
-            packageVersion = "1.0.0"
+            packageVersion = "$version"
 
             linux {
                 iconFile.set(project.file("src/main/resources/icon.png"))
