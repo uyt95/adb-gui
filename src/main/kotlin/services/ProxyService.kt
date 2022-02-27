@@ -97,11 +97,11 @@ object ProxyService {
 
     private fun sortProxies(proxies: List<Proxy>): List<Proxy> {
         return proxies.sortedWith(compareBy(
-            { it.type.id.toLowerCase() },
-            { it.from.type.id.toLowerCase() },
-            { it.from.name.toLowerCase() },
-            { it.to.type.id.toLowerCase() },
-            { it.to.name.toLowerCase() }
+            { it.type.id.lowercase() },
+            { it.from.type.id.lowercase() },
+            { it.from.name.lowercase() },
+            { it.to.type.id.lowercase() },
+            { it.to.name.lowercase() }
         ))
     }
 

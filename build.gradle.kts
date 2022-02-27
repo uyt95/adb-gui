@@ -1,16 +1,15 @@
 import org.jetbrains.compose.compose
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.5.21"
-    id("org.jetbrains.compose") version "1.0.0-alpha3"
+    kotlin("jvm") version "1.6.10"
+    id("org.jetbrains.compose") version "1.1.0"
 }
 
 group = "me.uyt"
 version = "1.0.0"
 
-val moshi = "1.12.0"
+val moshi = "1.13.0"
 
 repositories {
     jcenter()
@@ -23,16 +22,12 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation("com.squareup.moshi:moshi:$moshi")
     implementation("com.squareup.moshi:moshi-kotlin:$moshi")
-    implementation(kotlin("stdlib-jdk8"))
-}
-
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "11"
 }
 
 compose.desktop {
     application {
         mainClass = "MainKt"
+
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
 
@@ -44,12 +39,4 @@ compose.desktop {
             }
         }
     }
-}
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.kotlinOptions {
-    jvmTarget = "1.8"
-}
-val compileTestKotlin: KotlinCompile by tasks
-compileTestKotlin.kotlinOptions {
-    jvmTarget = "1.8"
 }

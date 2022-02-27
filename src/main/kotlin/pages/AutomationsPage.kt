@@ -11,8 +11,8 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusOrder
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.WindowSize
 import components.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,16 +44,23 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
         }
 
         table(
-            listOf(
-                TableColumn("Name") { Text(text = it.name) },
+            listOf(TableColumn("Name") { Text(text = it.name) },
                 TableColumn("Actions", contentAlignment = Alignment.Center) {
                     Row {
-                        vectorIconButton(name = "outline_play_arrow_24", contentDescription = "start", modifier = Modifier.padding(end = 4.dp)) {
+                        vectorIconButton(
+                            name = "outline_play_arrow_24",
+                            contentDescription = "start",
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
                             scope.launch {
                                 AutomationService.runAutomation(activeDevice, it)
                             }
                         }
-                        vectorIconButton(name = "outline_edit_24", contentDescription = "edit", modifier = Modifier.padding(end = 4.dp)) {
+                        vectorIconButton(
+                            name = "outline_edit_24",
+                            contentDescription = "edit",
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
                             scope.launch {
                                 editDialogAutomation.value = it
                                 showEditDialog.value = true
@@ -66,15 +73,15 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
                             }
                         }
                     }
-                }
-            ),
-            automations
+                }), automations
         )
 
-        Dialog.renderDialog(show = showAddDialog, scope = scope, title = "Add automation", content = {
-            renderEditAutomationDialogContent(
-                automation = null,
-                onSave = { _, name, commands ->
+        Dialog.renderDialog(show = showAddDialog,
+            scope = scope,
+            title = "Add automation",
+            size = DpSize(400.dp, 600.dp),
+            content = {
+                renderEditAutomationDialogContent(automation = null, onSave = { _, name, commands ->
                     scope.launch {
                         val newAutomations = automations.toMutableList()
                         newAutomations.add(Automation(name, commands))
@@ -82,33 +89,33 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
 
                         showAddDialog.value = false
                     }
-                },
-                onDismiss = {
+                }, onDismiss = {
                     scope.launch {
                         showAddDialog.value = false
                     }
-                }
-            )
-        })
+                })
+            })
 
-        Dialog.renderDialog(show = showEditDialog, scope = scope, title = "Edit automation", content = {
-            renderEditAutomationDialogContent(
-                automation = editDialogAutomation.value,
-                onSave = { automation, name, commands ->
-                    scope.launch {
-                        val newAutomations = automations.toMutableList()
-                        newAutomations.remove(automation)
-                        newAutomations.add(Automation(name, commands))
-                        AutomationService.setAutomations(newAutomations)
-                    }
-                },
-                onDismiss = {
-                    scope.launch {
-                        showEditDialog.value = false
-                    }
-                }
-            )
-        })
+        Dialog.renderDialog(show = showEditDialog,
+            scope = scope,
+            title = "Edit automation",
+            size = DpSize(400.dp, 600.dp),
+            content = {
+                renderEditAutomationDialogContent(automation = editDialogAutomation.value,
+                    onSave = { automation, name, commands ->
+                        scope.launch {
+                            val newAutomations = automations.toMutableList()
+                            newAutomations.remove(automation)
+                            newAutomations.add(Automation(name, commands))
+                            AutomationService.setAutomations(newAutomations)
+                        }
+                    },
+                    onDismiss = {
+                        scope.launch {
+                            showEditDialog.value = false
+                        }
+                    })
+            })
 
         Dialog.renderDialog(show = showConfirmDeleteDialog, scope = scope, title = "Remove automation", content = {
             Column {
@@ -116,18 +123,13 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
                     text = "Are you sure you want to remove ${confirmDeleteDialogAutomation.value?.name}?",
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-                Dialog.renderDialogButtons(
-                    "Remove",
-                    onConfirm = {
-                        val newAutomations = automations.toMutableList()
-                        newAutomations.remove(confirmDeleteDialogAutomation.value)
-                        AutomationService.setAutomations(newAutomations)
+                Dialog.renderDialogButtons("Remove", onConfirm = {
+                    val newAutomations = automations.toMutableList()
+                    newAutomations.remove(confirmDeleteDialogAutomation.value)
+                    AutomationService.setAutomations(newAutomations)
 
-                        showConfirmDeleteDialog.value = false
-                    },
-                    cancelText = "Cancel",
-                    onCancel = { showConfirmDeleteDialog.value = false }
-                )
+                    showConfirmDeleteDialog.value = false
+                }, cancelText = "Cancel", onCancel = { showConfirmDeleteDialog.value = false })
             }
         })
     }
@@ -150,20 +152,19 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
         Column(modifier = Modifier.padding(bottom = 8.dp)) {
             scrollView(modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 8.dp)) {
                 Column {
-                    TextField(
-                        label = { Text("Name") },
+                    TextField(label = { Text("Name") },
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).focusOrder(nameFocusRequester),
                         singleLine = true,
                         value = name.value,
-                        onValueChange = { name.value = it }
-                    )
+                        onValueChange = { name.value = it })
                     commands.value.forEachIndexed { index, command ->
                         Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                             Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
                                 Row(modifier = Modifier.fillMaxWidth()) {
                                     Text(
                                         text = "Command #${index + 1}",
-                                        modifier = Modifier.weight(1f).align(Alignment.CenterVertically).padding(end = 8.dp, bottom = 8.dp)
+                                        modifier = Modifier.weight(1f).align(Alignment.CenterVertically)
+                                            .padding(end = 8.dp, bottom = 8.dp)
                                     )
                                     vectorIconButton(
                                         name = "outline_north_24",
@@ -195,14 +196,11 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
                                         commands.value = newCommands
                                     }
                                 }
-                                commandField(
-                                    command = command,
-                                    onChanged = {
-                                        val newCommands = commands.value.toMutableList()
-                                        newCommands[index] = it
-                                        commands.value = newCommands
-                                    }
-                                )
+                                commandField(command = command, onChanged = {
+                                    val newCommands = commands.value.toMutableList()
+                                    newCommands[index] = it
+                                    commands.value = newCommands
+                                })
                             }
                         }
                     }
@@ -217,16 +215,14 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
                     }
                 }
             }
-            Dialog.renderDialogButtons(
-                confirmText = if (automation == null) "Add" else "Save",
+            Dialog.renderDialogButtons(confirmText = if (automation == null) "Add" else "Save",
                 confirmEnabled = name.value.trim().isNotEmpty() && commands.value.isNotEmpty(),
                 onConfirm = {
                     onSave.invoke(automation, name.value, commands.value)
                     onDismiss.invoke()
                 },
                 cancelText = "Cancel",
-                onCancel = { onDismiss.invoke() }
-            )
+                onCancel = { onDismiss.invoke() })
         }
     }
 
@@ -267,19 +263,16 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
     @Composable
     private fun argumentField(argument: Argument, onChanged: (argument: Argument) -> Unit) {
         when (argument.type) {
-            ArgumentType.Select -> select(
-                options = Argument.getSelectOptions(argument),
+            ArgumentType.Select -> select(options = Argument.getSelectOptions(argument),
                 selected = Argument.getSelectOptions(argument).find { it.value == argument.value },
                 onSelected = {
                     val newArgument = Argument.getArgument(argument.key)
                     newArgument.value = it.value
                     onChanged.invoke(newArgument)
-                }
-            )
+                })
             ArgumentType.Static -> {
             }
-            ArgumentType.Text -> TextField(
-                label = { Text(text = argument.label) },
+            ArgumentType.Text -> TextField(label = { Text(text = argument.label) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = false,
                 value = argument.value,
@@ -287,8 +280,7 @@ class AutomationsPage : Page("automations", "Automations", fab = Fab("+")) {
                     val newArgument = Argument.getArgument(argument.key)
                     newArgument.value = it
                     onChanged.invoke(newArgument)
-                }
-            )
+                })
         }
     }
 }

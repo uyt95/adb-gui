@@ -1,20 +1,24 @@
 package components
 
 import Palette
-import androidx.compose.desktop.DesktopTheme
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.WindowSize
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberDialogState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -26,11 +30,11 @@ object Dialog {
         scope: CoroutineScope,
         show: MutableState<Boolean>,
         title: String,
-        size: WindowSize = WindowSize(400.dp, Dp.Unspecified),
+        size: DpSize = DpSize(400.dp, Dp.Unspecified),
         content: @Composable () -> Unit
     ) {
         if (show.value) {
-            val state = rememberDialogState(size = size)
+            val state = rememberDialogState(size = size, position = WindowPosition.PlatformDefault)
 
             Dialog(
                 state = state,
@@ -38,7 +42,7 @@ object Dialog {
                 onCloseRequest = { scope.launch { show.value = false } }
             ) {
                 MaterialTheme(Palette.lightColors) {
-                    DesktopTheme {
+                    CompositionLocalProvider {
                         Box(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
                             content()
                         }

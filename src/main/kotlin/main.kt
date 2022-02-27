@@ -1,4 +1,3 @@
-import androidx.compose.desktop.DesktopTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.*
@@ -42,7 +41,7 @@ fun main() = application {
         val activeDevice by DevicesService.activeDevice.collectAsState()
 
         MaterialTheme(Palette.lightColors) {
-            DesktopTheme {
+            CompositionLocalProvider {
                 Box(modifier = Modifier.fillMaxSize()) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         TopAppBar(title = {

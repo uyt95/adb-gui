@@ -26,11 +26,11 @@ object AutomationService {
 
     init {
         val json = preferences.get(KEY_AUTOMATIONS, "[]")
-        mutableAutomations.value = automationListAdapter.fromJson(json)?.sortedBy { it.name.toLowerCase() } ?: emptyList()
+        mutableAutomations.value = automationListAdapter.fromJson(json)?.sortedBy { it.name.lowercase() } ?: emptyList()
     }
 
     fun setAutomations(value: List<Automation>) {
-        mutableAutomations.value = value.sortedBy { it.name.toLowerCase() }
+        mutableAutomations.value = value.sortedBy { it.name.lowercase() }
         val json = automationListAdapter.toJson(value)
         preferences.put(KEY_AUTOMATIONS, json)
     }
