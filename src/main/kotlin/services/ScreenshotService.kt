@@ -4,12 +4,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import models.Device
+import util.Constants
 import util.ExecuteHelper
 import util.MessageHelper
 import java.io.File
 
 object ScreenshotService {
-    private const val adbGuiDir = "/sdcard/adb-gui"
+    private const val adbGuiDir = "/sdcard/${Constants.appDir}"
     private const val tempScreenshot = "tmp-screenshot.png"
 
     fun takeScreenshot(device: Device, path: String, callback: (success: Boolean) -> Unit) {
@@ -30,12 +31,13 @@ object ScreenshotService {
     private fun createDirectoryOnDevice(device: Device) {
         val response = ExecuteHelper.executeAdb(listOf("shell", "mkdir", "-p", adbGuiDir), device)
         if (response.isNotEmpty()) {
-            throw Throwable("Failed to create adb-gui directory: $response")
+            throw Throwable("Failed to create ${Constants.appDir} directory: $response")
         }
     }
 
     private fun createScreenshot(device: Device) {
-        val response = ExecuteHelper.executeAdb(listOf("shell", "screencap", "-p", "$adbGuiDir/$tempScreenshot"), device)
+        val response =
+            ExecuteHelper.executeAdb(listOf("shell", "screencap", "-p", "$adbGuiDir/$tempScreenshot"), device)
         if (response.isNotEmpty()) {
             throw Throwable("Failed to create screenshot: $response")
         }

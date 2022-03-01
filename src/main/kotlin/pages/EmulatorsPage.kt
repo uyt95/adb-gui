@@ -77,7 +77,7 @@ class EmulatorsPage : Page("emulators", "Emulators") {
                         scope.launch {
                             emulator.parameters.noSnapshotLoad = noSnapshotLoad.value
                             emulator.parameters.writableSystem = writableSystem.value
-                            EmulatorsService.saveEmulatorParameters(emulator)
+                            EmulatorsService.setEmulatorParameters(emulator)
 
                             showEditDialog.value = false
                         }

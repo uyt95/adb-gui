@@ -1,6 +1,5 @@
 package services
 
-import com.squareup.moshi.Types
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -12,17 +11,15 @@ import models.Device
 import models.proxy.Proxy
 import models.proxy.ProxyType
 import models.proxy.Socket
-import util.MessageHelper
 import util.ExecuteHelper
-import util.JsonHelper
-import java.util.prefs.Preferences
+import util.MessageHelper
+import util.PreferencesRepository
 
 @ExperimentalCoroutinesApi
 object ProxyService {
-    private const val KEY_PROXIES = "proxies"
+    private const val PATH_NAME = "proxies"
 
-    private val preferences = Preferences.userRoot().node("proxies")
-    private val proxyListAdapter = JsonHelper.moshi.adapter<List<Proxy>>(Types.newParameterizedType(List::class.java, Proxy::class.java))
+    private val repository = PreferencesRepository(PATH_NAME, Proxy::class.java)
 
     private val mutableSavedProxies: MutableStateFlow<List<Proxy>> = MutableStateFlow(emptyList())
     private val mutableAdbProxies: MutableStateFlow<List<Proxy>> = MutableStateFlow(emptyList())
@@ -34,7 +31,9 @@ object ProxyService {
         get() = mutableAdbProxies
 
     init {
-        loadSavedProxies()
+        repository.migrateListV1ToV2("proxies", "proxies")
+
+        mutableSavedProxies.value = sortProxies(repository.get())
 
         CoroutineScope(Dispatchers.IO).launch {
             DevicesService.activeDevice.collect {
@@ -44,9 +43,9 @@ object ProxyService {
     }
 
     fun setSavedProxies(value: List<Proxy>) {
-        mutableSavedProxies.value = sortProxies(value)
-        val json = proxyListAdapter.toJson(value)
-        preferences.put(KEY_PROXIES, json)
+        val items = sortProxies(value)
+        mutableSavedProxies.value = items
+        repository.set(items)
     }
 
     fun removeSavedProxy(proxy: Proxy, device: Device?) {
@@ -62,7 +61,13 @@ object ProxyService {
     fun connect(proxy: Proxy, device: Device) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = ExecuteHelper.executeAdb(listOf(proxy.type.id, "${proxy.from.type.id}:${proxy.from.name}", "${proxy.to.type.id}:${proxy.to.name}"), device)
+                val response = ExecuteHelper.executeAdb(
+                    listOf(
+                        proxy.type.id,
+                        "${proxy.from.type.id}:${proxy.from.name}",
+                        "${proxy.to.type.id}:${proxy.to.name}"
+                    ), device
+                )
                 if (response.trim() != proxy.from.name) {
                     throw Throwable(response)
                 }
@@ -77,7 +82,13 @@ object ProxyService {
     fun disconnect(proxy: Proxy, device: Device) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = ExecuteHelper.executeAdb(listOf(proxy.type.id, "--remove", "${proxy.from.type.id}:${proxy.from.name}"), device)
+                val response = ExecuteHelper.executeAdb(
+                    listOf(
+                        proxy.type.id,
+                        "--remove",
+                        "${proxy.from.type.id}:${proxy.from.name}"
+                    ), device
+                )
                 if (response.isNotEmpty()) {
                     throw Throwable(response)
                 }
@@ -87,12 +98,6 @@ object ProxyService {
                 loadActiveProxies()
             }
         }
-    }
-
-    private fun loadSavedProxies() {
-        val json = preferences.get(KEY_PROXIES, "[]")
-        val parsedProxies = proxyListAdapter.fromJson(json) ?: emptyList()
-        mutableSavedProxies.value = sortProxies(parsedProxies)
     }
 
     private fun sortProxies(proxies: List<Proxy>): List<Proxy> {

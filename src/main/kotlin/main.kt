@@ -15,9 +15,8 @@ import components.vectorIconButton
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import services.DevicesService
+import util.Constants
 import util.MessageHelper
-
-const val appTitle = "ADB GUI"
 
 @ExperimentalUnitApi
 @ExperimentalComposeUiApi
@@ -25,7 +24,7 @@ const val appTitle = "ADB GUI"
 @ExperimentalComposeApi
 @ExperimentalMaterialApi
 fun main() = application {
-    Window(onCloseRequest = ::exitApplication, title = appTitle, icon = painterResource("icon.png")) {
+    Window(onCloseRequest = ::exitApplication, title = Constants.appTitle, icon = painterResource("icon.png")) {
         WindowManager.appWindow = this.window
 
         val scope = rememberCoroutineScope()
@@ -46,7 +45,7 @@ fun main() = application {
                     Column(modifier = Modifier.fillMaxSize()) {
                         TopAppBar(title = {
                             Row(modifier = Modifier.height(50.dp).fillMaxWidth()) {
-                                Text(appTitle, modifier = Modifier.align(Alignment.CenterVertically))
+                                Text(Constants.appTitle, modifier = Modifier.align(Alignment.CenterVertically))
                                 Box(modifier = Modifier.weight(1f)) {}
                                 Box(modifier = Modifier.align(Alignment.CenterVertically).padding(end = 8.dp)) {
                                     deviceSelector()

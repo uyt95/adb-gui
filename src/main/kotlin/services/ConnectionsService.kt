@@ -1,6 +1,5 @@
 package services
 
-import com.squareup.moshi.Types
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -8,17 +7,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import models.Connection
-import util.MessageHelper
 import util.ExecuteHelper
-import util.JsonHelper
-import java.util.prefs.Preferences
+import util.MessageHelper
+import util.PreferencesRepository
 
 @ExperimentalCoroutinesApi
 object ConnectionsService {
-    private const val KEY_CONNECTIONS = "connections"
+    private const val PATH_NAME = "connections"
 
-    private val preferences = Preferences.userRoot().node("connections")
-    private val connectionListAdapter = JsonHelper.moshi.adapter<List<Connection>>(Types.newParameterizedType(List::class.java, Connection::class.java))
+    private val repository = PreferencesRepository(PATH_NAME, Connection::class.java)
 
     private val mutableConnections: MutableStateFlow<List<Connection>> = MutableStateFlow(emptyList())
 
@@ -26,14 +23,15 @@ object ConnectionsService {
         get() = mutableConnections
 
     init {
-        val json = preferences.get(KEY_CONNECTIONS, "[]")
-        mutableConnections.value = connectionListAdapter.fromJson(json)?.sortedBy { it.name.lowercase() } ?: emptyList()
+        repository.migrateListV1ToV2("connections", "connections")
+
+        mutableConnections.value = repository.get().sortedBy { it.name.lowercase() }
     }
 
     fun setConnections(value: List<Connection>) {
-        mutableConnections.value = value.sortedBy { it.name.lowercase() }
-        val json = connectionListAdapter.toJson(value)
-        preferences.put(KEY_CONNECTIONS, json)
+        val items = value.sortedBy { it.name.lowercase() }
+        mutableConnections.value = items
+        repository.set(items)
     }
 
     fun connect(connection: Connection) {

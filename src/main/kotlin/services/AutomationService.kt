@@ -1,6 +1,5 @@
 package services
 
-import com.squareup.moshi.Types
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,14 +9,12 @@ import models.Device
 import models.automation.ArgumentType
 import models.automation.Automation
 import util.ExecuteHelper
-import util.JsonHelper
-import java.util.prefs.Preferences
+import util.PreferencesRepository
 
 object AutomationService {
-    private const val KEY_AUTOMATIONS = "automations"
+    private const val PATH_NAME = "automations"
 
-    private val preferences = Preferences.userRoot().node("automation")
-    private val automationListAdapter = JsonHelper.moshi.adapter<List<Automation>>(Types.newParameterizedType(List::class.java, Automation::class.java))
+    private val repository = PreferencesRepository(PATH_NAME, Automation::class.java)
 
     private val mutableAutomations: MutableStateFlow<List<Automation>> = MutableStateFlow<List<Automation>>(emptyList())
 
@@ -25,14 +22,15 @@ object AutomationService {
         get() = mutableAutomations
 
     init {
-        val json = preferences.get(KEY_AUTOMATIONS, "[]")
-        mutableAutomations.value = automationListAdapter.fromJson(json)?.sortedBy { it.name.lowercase() } ?: emptyList()
+        repository.migrateListV1ToV2("automation", "automations")
+
+        mutableAutomations.value = repository.get().sortedBy { it.name.lowercase() }
     }
 
     fun setAutomations(value: List<Automation>) {
-        mutableAutomations.value = value.sortedBy { it.name.lowercase() }
-        val json = automationListAdapter.toJson(value)
-        preferences.put(KEY_AUTOMATIONS, json)
+        val items = value.sortedBy { it.name.lowercase() }
+        mutableAutomations.value = items
+        repository.set(items)
     }
 
     fun runAutomation(device: Device?, automation: Automation) {
