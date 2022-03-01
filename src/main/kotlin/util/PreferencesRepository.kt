@@ -10,28 +10,28 @@ class PreferencesRepository<T>(pathName: String, private val type: Class<T>) {
         val itemCount = preferences.getInt(KEY_ITEM_COUNT, 0)
         val items = mutableListOf<T>()
         for (index in 0 until itemCount) {
-            val json = preferences.get(getItemKey(index), null) ?: continue
-            val item = jsonAdapter.fromJson(json) ?: continue
+            val json = preferences.get(getItemKey(index), null)
+            val item = fromJson(json) ?: continue
             items.add(item)
         }
         return items
     }
 
     fun get(key: String): T? {
-        val json = preferences.get(key, null) ?: return null
-        return jsonAdapter.fromJson(json)
+        val json = preferences.get(key, null)
+        return fromJson(json)
     }
 
     fun set(items: List<T>) {
         preferences.putInt(KEY_ITEM_COUNT, items.size)
         items.forEachIndexed { index, item ->
-            val json = jsonAdapter.toJson(item)
+            val json = toJson(item)
             preferences.put(getItemKey(index), json)
         }
     }
 
-    fun set(key: String, item: T) {
-        val json = jsonAdapter.toJson(item)
+    fun set(key: String, item: T?) {
+        val json = toJson(item)
         preferences.put(key, json)
     }
 
@@ -57,13 +57,32 @@ class PreferencesRepository<T>(pathName: String, private val type: Class<T>) {
         try {
             val preferencesV1 = PreferencesProvider.provideV1(pathName) ?: return
             preferencesV1.keys().forEach { oldKey ->
-                val json = preferencesV1.get(oldKey, null) ?: return@forEach
-                val value = jsonAdapter.fromJson(json) ?: return@forEach
+                val json = preferencesV1.get(oldKey, null)
+                val value = fromJson(json)
                 val newKey = convertKey(oldKey)
                 set(newKey, value)
             }
             preferencesV1.removeNode()
         } catch (_: Throwable) {
+        }
+    }
+
+    private fun fromJson(json: String?): T? {
+        json ?: return null
+        return if (type == String::class.java) {
+            @Suppress("UNCHECKED_CAST")
+            json as? T
+        } else {
+            jsonAdapter.fromJson(json)
+        }
+    }
+
+    private fun toJson(value: T?): String? {
+        value ?: return null
+        return if (type == String::class.java) {
+            value as? String
+        } else {
+            jsonAdapter.toJson(value)
         }
     }
 
