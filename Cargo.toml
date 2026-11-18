@@ -4,6 +4,7 @@ version = "3.0.0"
 description = "A user interface on top of the adb (Android Debug Bridge)"
 license-file = "LICENSE"
 edition = "2024"
+rust-version = "1.92"
 
 [dependencies]
 adw = { version = "0.9.2", package = "libadwaita", features = ["v1_5"] }

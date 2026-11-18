@@ -13,7 +13,7 @@ permissions:
 jobs:
   rpm:
     runs-on: ubuntu-latest
-    container: fedora:41
+    container: fedora:44
     steps:
       - name: Install build dependencies
         run: >
@@ -33,7 +33,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo/registry
-          key: cargo-fedora41-${{ hashFiles('Cargo.lock') }}
+          key: cargo-fedora44-${{ hashFiles('Cargo.lock') }}
 
       - name: Create source tarball
         run: |

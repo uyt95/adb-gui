@@ -11,8 +11,8 @@ License:        MIT
 URL:            https://github.com/uyt95/adb-gui
 Source0:        %{name}-%{version}.tar.gz
 
-BuildRequires:  cargo >= 1.85
-BuildRequires:  rust >= 1.85
+BuildRequires:  cargo >= 1.92
+BuildRequires:  rust >= 1.92
 BuildRequires:  gcc
 BuildRequires:  pkgconfig(gtk4) >= 4.12
 BuildRequires:  pkgconfig(libadwaita-1) >= 1.5
