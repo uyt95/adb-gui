@@ -82,6 +82,10 @@ impl Store {
         gtk::glib::user_data_dir().join("adb-gui").join("data.json")
     }
 
+    pub fn exists(&self) -> bool {
+        self.path.exists()
+    }
+
     pub fn load(&self) -> Database {
         match fs::read_to_string(&self.path) {
             Ok(content) => serde_json::from_str(&content).unwrap_or_else(|error| {

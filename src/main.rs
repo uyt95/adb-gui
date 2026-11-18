@@ -3,6 +3,7 @@
 mod adb;
 mod keycodes;
 mod l10n;
+mod legacy;
 mod models;
 mod state;
 mod store;

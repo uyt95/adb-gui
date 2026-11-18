@@ -6,9 +6,9 @@ use std::rc::Rc;
 use gtk::{gio, glib};
 
 use crate::adb::{self, Tools};
-use crate::l10n;
 use crate::models::{Device, Emulator, EmulatorParams, Proxy, SettingKey};
 use crate::store::{Database, Store};
+use crate::{l10n, legacy};
 
 type Listener = Rc<dyn Fn()>;
 
@@ -29,7 +29,11 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(store: Store) -> Rc<AppState> {
-        let mut db = store.load();
+        let mut db = if store.exists() {
+            store.load()
+        } else {
+            import_legacy_data()
+        };
         fill_default_settings(&mut db);
         store.save(&db);
         Rc::new(AppState {
@@ -234,6 +238,23 @@ impl AppState {
 
     pub fn setting(&self, key: SettingKey) -> String {
         self.db.borrow().settings.get(key).to_string()
+    }
+}
+
+/// Takes over the data of the Flutter version of the app on first start.
+fn import_legacy_data() -> Database {
+    let Some(path) = legacy::find() else {
+        return Database::default();
+    };
+    match legacy::import(&path) {
+        Ok(db) => {
+            eprintln!("Imported data from {}", path.display());
+            db
+        }
+        Err(error) => {
+            eprintln!("Failed to import {}: {error}", path.display());
+            Database::default()
+        }
     }
 }
 
