@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=ADB GUI
+GenericName=Android Debug Bridge
+Comment=A user interface on top of adb (Android Debug Bridge)
+Comment[nl]=Een gebruikersinterface bovenop adb (Android Debug Bridge)
+Exec=adb-gui
+Icon=io.github.uyt95.AdbGui
+Terminal=false
+Categories=Development;GTK;
+Keywords=adb;android;emulator;debug;device;
+StartupNotify=true
