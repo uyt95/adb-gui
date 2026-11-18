@@ -1,0 +1,164 @@
+use std::rc::Rc;
+
+use adw::prelude::*;
+use gtk::gdk;
+use gtk::glib;
+
+use crate::l10n;
+use crate::state::AppState;
+use crate::ui::{self, Page};
+
+/// Sends text and special keys to the active device.
+///
+/// Shortcuts in the text field: Ctrl+Enter sends the text, Ctrl+Backspace
+/// sends Backspace and Ctrl+Tab sends Tab.
+pub fn page(state: &Rc<AppState>) -> Page {
+    let text_view = gtk::TextView::builder()
+        .wrap_mode(gtk::WrapMode::WordChar)
+        .top_margin(8)
+        .bottom_margin(8)
+        .left_margin(8)
+        .right_margin(8)
+        .accepts_tab(false)
+        .build();
+    text_view.update_property(&[gtk::accessible::Property::Label(
+        l10n::field_keyboard_input(),
+    )]);
+    let buffer = text_view.buffer();
+    let scrolled = gtk::ScrolledWindow::builder()
+        .child(&text_view)
+        .min_content_height(160)
+        .hexpand(true)
+        .css_classes(["card"])
+        .build();
+
+    let send_backspace = {
+        let state = state.clone();
+        move || send_key(&state, "DEL")
+    };
+    let send_tab = {
+        let state = state.clone();
+        move || send_key(&state, "TAB")
+    };
+    let send_text = {
+        let state = state.clone();
+        let buffer = buffer.clone();
+        move || {
+            let Some(device) = state.active_device() else {
+                return;
+            };
+            let text = buffer
+                .text(&buffer.start_iter(), &buffer.end_iter(), false)
+                .to_string();
+            if text.is_empty() {
+                return;
+            }
+            let buffer = buffer.clone();
+            state.run(
+                move |tools| tools.send_text(&device, &text),
+                move |state, result| match result {
+                    Ok(()) => buffer.set_text(""),
+                    Err(error) => state.show_error(&error),
+                },
+            );
+        }
+    };
+    let send_backspace = Rc::new(send_backspace);
+    let send_tab = Rc::new(send_tab);
+    let send_text = Rc::new(send_text);
+
+    let backspace_button = ui::icon_button("edit-clear-symbolic", l10n::button_backspace(), {
+        let f = send_backspace.clone();
+        move || f()
+    });
+    let tab_button = ui::icon_button("format-indent-more-symbolic", l10n::button_tab(), {
+        let f = send_tab.clone();
+        move || f()
+    });
+    let send_button = ui::icon_button("mail-send-symbolic", l10n::button_send(), {
+        let f = send_text.clone();
+        move || f()
+    });
+    send_button.set_valign(gtk::Align::Start);
+
+    let keys = gtk::Box::new(gtk::Orientation::Vertical, 6);
+    keys.append(&backspace_button);
+    keys.append(&tab_button);
+
+    let shortcuts = gtk::EventControllerKey::new();
+    shortcuts.set_propagation_phase(gtk::PropagationPhase::Capture);
+    shortcuts.connect_key_pressed(move |_, key, _, modifiers| {
+        if !modifiers.contains(gdk::ModifierType::CONTROL_MASK) {
+            return glib::Propagation::Proceed;
+        }
+        match key {
+            gdk::Key::Return | gdk::Key::KP_Enter => send_text(),
+            gdk::Key::BackSpace => send_backspace(),
+            gdk::Key::Tab | gdk::Key::ISO_Left_Tab => send_tab(),
+            _ => return glib::Propagation::Proceed,
+        }
+        glib::Propagation::Stop
+    });
+    text_view.add_controller(shortcuts);
+
+    let heading = gtk::Label::builder()
+        .label(l10n::field_keyboard_input())
+        .xalign(0.0)
+        .css_classes(["heading"])
+        .build();
+    let hint = gtk::Label::builder()
+        .label("Ctrl+Enter, Ctrl+Backspace, Ctrl+Tab")
+        .xalign(0.0)
+        .css_classes(["dim-label", "caption"])
+        .build();
+    let field = gtk::Box::new(gtk::Orientation::Vertical, 6);
+    field.append(&heading);
+    field.append(&scrolled);
+    field.append(&hint);
+
+    let content = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+    content.append(&keys);
+    content.append(&field);
+    content.append(&send_button);
+
+    let update = {
+        let state = state.clone();
+        let buffer = buffer.clone();
+        let (backspace_button, tab_button, send_button) = (
+            backspace_button.clone(),
+            tab_button.clone(),
+            send_button.clone(),
+        );
+        move || {
+            let has_device = state.active_device().is_some();
+            backspace_button.set_sensitive(has_device);
+            tab_button.set_sensitive(has_device);
+            send_button.set_sensitive(has_device && buffer.char_count() > 0);
+        }
+    };
+    update();
+    buffer.connect_changed({
+        let update = update.clone();
+        move |_| update()
+    });
+    state.subscribe(update);
+
+    let on_show: Rc<dyn Fn()> = Rc::new(move || {
+        text_view.grab_focus();
+    });
+
+    Page {
+        id: "keyboard",
+        title: l10n::page_title_keyboard(),
+        icon: "input-keyboard-symbolic",
+        widget: ui::page_body(&content),
+        on_add: None,
+        on_show: Some(on_show),
+    }
+}
+
+fn send_key(state: &Rc<AppState>, key: &'static str) {
+    if let Some(device) = state.active_device() {
+        state.run_action(move |tools| tools.send_key(&device, key), |_| {});
+    }
+}
