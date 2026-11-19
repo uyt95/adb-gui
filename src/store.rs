@@ -1,7 +1,10 @@
 //! Persistence of user data as a JSON file in the XDG data directory.
 
+use std::cell::Cell;
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
@@ -71,28 +74,71 @@ impl Database {
 
 pub struct Store {
     path: PathBuf,
+    /// Set when an unreadable data file could not be moved aside, so that
+    /// saving never overwrites the user's data.
+    read_only: Cell<bool>,
+}
+
+/// Why the data file could not be loaded, and what was done with it.
+#[derive(Debug, PartialEq, Eq)]
+pub enum LoadProblem {
+    /// The file was moved to this backup path and the app starts empty.
+    BackedUp(PathBuf),
+    /// The file could not be moved aside, so changes will not be saved.
+    NotSaving,
 }
 
 impl Store {
     pub fn new(path: PathBuf) -> Store {
-        Store { path }
+        Store {
+            path,
+            read_only: Cell::new(false),
+        }
     }
 
     pub fn default_path() -> PathBuf {
         gtk::glib::user_data_dir().join("adb-gui").join("data.json")
     }
 
-    pub fn load(&self) -> Database {
-        match fs::read_to_string(&self.path) {
-            Ok(content) => serde_json::from_str(&content).unwrap_or_else(|error| {
-                eprintln!("Failed to parse {}: {error}", self.path.display());
-                Database::default()
-            }),
-            Err(_) => Database::default(),
+    /// Loads the database. A missing file gives an empty database. A file
+    /// that cannot be read or parsed is moved to a backup first, so that the
+    /// next save does not overwrite it.
+    pub fn load(&self) -> (Database, Option<LoadProblem>) {
+        let error = match fs::read_to_string(&self.path) {
+            Ok(content) => match serde_json::from_str(&content) {
+                Ok(database) => return (database, None),
+                Err(error) => error.to_string(),
+            },
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                return (Database::default(), None);
+            }
+            Err(error) => error.to_string(),
+        };
+        eprintln!("Failed to load {}: {error}", self.path.display());
+        (Database::default(), Some(self.back_up()))
+    }
+
+    fn back_up(&self) -> LoadProblem {
+        let seconds = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let mut name = self.path.file_name().unwrap_or_default().to_os_string();
+        name.push(format!(".bak-{seconds}"));
+        let backup = self.path.with_file_name(name);
+        match fs::rename(&self.path, &backup) {
+            Ok(()) => LoadProblem::BackedUp(backup),
+            Err(error) => {
+                eprintln!("Failed to back up {}: {error}", self.path.display());
+                self.read_only.set(true);
+                LoadProblem::NotSaving
+            }
         }
     }
 
     pub fn save(&self, database: &Database) {
+        if self.read_only.get() {
+            return;
+        }
         if let Err(error) = write_atomic(&self.path, database) {
             eprintln!("Failed to save {}: {error}", self.path.display());
         }
@@ -147,9 +193,53 @@ mod tests {
             commands: vec![crate::models::Command::new(crate::models::CommandType::Adb)],
         });
         store.save(&db);
-        let loaded = store.load();
+        let (loaded, problem) = store.load();
+        assert_eq!(problem, None);
         assert_eq!(loaded.settings.adb_path, "/usr/bin/adb");
         assert_eq!(loaded.automations[0].commands, db.automations[0].commands);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn missing_file_loads_empty() {
+        let store = Store::new(std::env::temp_dir().join("adb-gui-test-missing/data.json"));
+        let (db, problem) = store.load();
+        assert!(db.connections.is_empty());
+        assert_eq!(problem, None);
+    }
+
+    #[test]
+    fn missing_nested_fields_use_defaults() {
+        let json = r#"{
+            "settings": {"adb_path": "/usr/bin/adb"},
+            "emulators": [{"id": 1, "name": "a", "params": {}}],
+            "proxies": [{"id": 2, "type": "forward",
+                "from": {"type": "tcp"}, "to": {"type": "tcp", "name": "80"}}],
+            "automations": [{"name": "x", "commands": [
+                {"type": "adb", "operation": {"type": "reboot"}}]}]
+        }"#;
+        let db: Database = serde_json::from_str(json).unwrap();
+        assert_eq!(db.settings.adb_path, "/usr/bin/adb");
+        assert_eq!(db.settings.screenshot_path, "");
+        assert!(!db.emulators[0].params.no_snapshot_load);
+        assert_eq!(db.proxies[0].from.name, "");
+        assert!(db.automations[0].commands[0].operation.arguments.is_empty());
+    }
+
+    #[test]
+    fn unreadable_file_is_backed_up_not_overwritten() {
+        let dir = std::env::temp_dir().join(format!("adb-gui-test-bak-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("data.json");
+        fs::write(&path, "{ not json").unwrap();
+        let store = Store::new(path.clone());
+        let (db, problem) = store.load();
+        assert!(db.connections.is_empty());
+        let Some(LoadProblem::BackedUp(backup)) = problem else {
+            panic!("expected a backup, got {problem:?}");
+        };
+        assert_eq!(fs::read_to_string(&backup).unwrap(), "{ not json");
+        assert!(!path.exists());
         fs::remove_dir_all(dir).unwrap();
     }
 }

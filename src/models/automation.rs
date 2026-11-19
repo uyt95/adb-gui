@@ -26,6 +26,7 @@ impl ArgumentType {
 pub struct Argument {
     #[serde(rename = "type")]
     pub argument_type: ArgumentType,
+    #[serde(default)]
     pub value: String,
 }
 
@@ -106,6 +107,7 @@ impl OperationType {
 pub struct Operation {
     #[serde(rename = "type")]
     pub operation_type: OperationType,
+    #[serde(default)]
     pub arguments: Vec<Argument>,
 }
 
@@ -159,6 +161,7 @@ impl Command {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Automation {
     pub id: u64,
     pub name: String,

@@ -87,6 +87,7 @@ impl SocketType {
 pub struct Socket {
     #[serde(rename = "type")]
     pub socket_type: SocketType,
+    #[serde(default)]
     pub name: String,
 }
 
@@ -107,6 +108,7 @@ impl Socket {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Proxy {
+    #[serde(default)]
     pub id: u64,
     #[serde(rename = "type")]
     pub proxy_type: ProxyType,

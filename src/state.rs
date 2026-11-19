@@ -7,7 +7,7 @@ use gtk::{gio, glib};
 
 use crate::l10n;
 use crate::models::{Device, Emulator, EmulatorParams, Proxy, SettingKey};
-use crate::store::{Database, Store};
+use crate::store::{Database, LoadProblem, Store};
 use crate::tools::{self, Tools};
 
 type Listener = Rc<dyn Fn()>;
@@ -25,11 +25,13 @@ pub struct AppState {
     notifying: Cell<bool>,
     pending: Cell<bool>,
     toast_overlay: RefCell<Option<adw::ToastOverlay>>,
+    /// Shown once the toast overlay exists.
+    load_problem: RefCell<Option<LoadProblem>>,
 }
 
 impl AppState {
     pub fn new(store: Store) -> Rc<AppState> {
-        let mut db = store.load();
+        let (mut db, load_problem) = store.load();
         fill_default_settings(&mut db);
         store.save(&db);
         Rc::new(AppState {
@@ -43,11 +45,18 @@ impl AppState {
             notifying: Cell::new(false),
             pending: Cell::new(false),
             toast_overlay: RefCell::default(),
+            load_problem: RefCell::new(load_problem),
         })
     }
 
     pub fn set_toast_overlay(&self, overlay: &adw::ToastOverlay) {
         self.toast_overlay.replace(Some(overlay.clone()));
+        if let Some(problem) = self.load_problem.take() {
+            self.show_error(&match problem {
+                LoadProblem::BackedUp(backup) => l10n::data_backed_up(&backup.to_string_lossy()),
+                LoadProblem::NotSaving => l10n::data_not_saving().to_string(),
+            });
+        }
     }
 
     pub fn show_error(&self, message: &str) {
