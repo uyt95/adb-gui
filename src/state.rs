@@ -5,9 +5,9 @@ use std::rc::Rc;
 
 use gtk::{gio, glib};
 
-use crate::adb::{self, Tools};
 use crate::models::{Device, Emulator, EmulatorParams, Proxy, SettingKey};
-use crate::store::{Database, Store};
+use crate::store::{Database, LoadProblem, Store};
+use crate::tools::{self, Tools};
 use crate::{l10n, legacy};
 
 type Listener = Rc<dyn Fn()>;
@@ -25,14 +25,16 @@ pub struct AppState {
     notifying: Cell<bool>,
     pending: Cell<bool>,
     toast_overlay: RefCell<Option<adw::ToastOverlay>>,
+    /// Shown once the toast overlay exists.
+    load_problem: RefCell<Option<LoadProblem>>,
 }
 
 impl AppState {
     pub fn new(store: Store) -> Rc<AppState> {
-        let mut db = if store.exists() {
+        let (mut db, load_problem) = if store.exists() {
             store.load()
         } else {
-            import_legacy_data()
+            (import_legacy_data(), None)
         };
         fill_default_settings(&mut db);
         store.save(&db);
@@ -47,11 +49,18 @@ impl AppState {
             notifying: Cell::new(false),
             pending: Cell::new(false),
             toast_overlay: RefCell::default(),
+            load_problem: RefCell::new(load_problem),
         })
     }
 
     pub fn set_toast_overlay(&self, overlay: &adw::ToastOverlay) {
         self.toast_overlay.replace(Some(overlay.clone()));
+        if let Some(problem) = self.load_problem.take() {
+            self.show_error(&match problem {
+                LoadProblem::BackedUp(backup) => l10n::data_backed_up(&backup.to_string_lossy()),
+                LoadProblem::NotSaving => l10n::data_not_saving().to_string(),
+            });
+        }
     }
 
     pub fn show_error(&self, message: &str) {
@@ -136,7 +145,7 @@ impl AppState {
     /// Like [`run`](Self::run) for actions that only report errors.
     pub fn run_action(
         self: &Rc<Self>,
-        work: impl FnOnce(Tools) -> adb::Result<()> + Send + 'static,
+        work: impl FnOnce(Tools) -> tools::Result<()> + Send + 'static,
         done: impl FnOnce(&Rc<AppState>) + 'static,
     ) {
         self.run(work, move |state, result| {
@@ -263,11 +272,11 @@ fn fill_default_settings(db: &mut Database) {
     let home = home.to_string_lossy();
     let settings = &mut db.settings;
     if settings.adb_path.is_empty() {
-        settings.adb_path = adb::find_executable("adb")
+        settings.adb_path = tools::find_executable("adb")
             .unwrap_or_else(|| format!("{home}/Android/Sdk/platform-tools/adb"));
     }
     if settings.emulator_path.is_empty() {
-        settings.emulator_path = adb::find_executable("emulator")
+        settings.emulator_path = tools::find_executable("emulator")
             .unwrap_or_else(|| format!("{home}/Android/Sdk/emulator/emulator"));
     }
     if settings.screenshot_path.is_empty() {

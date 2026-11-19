@@ -4,9 +4,10 @@ use adw::prelude::*;
 use gtk::gdk;
 use gtk::glib;
 
+use super::{Callback, Page};
 use crate::l10n;
 use crate::state::AppState;
-use crate::ui::{self, Page};
+use crate::ui::widgets;
 
 /// Sends text and special keys to the active device.
 ///
@@ -67,15 +68,15 @@ pub fn page(state: &Rc<AppState>) -> Page {
     let send_tab = Rc::new(send_tab);
     let send_text = Rc::new(send_text);
 
-    let backspace_button = ui::icon_button("edit-clear-symbolic", l10n::button_backspace(), {
+    let backspace_button = widgets::icon_button("edit-clear-symbolic", l10n::button_backspace(), {
         let f = send_backspace.clone();
         move || f()
     });
-    let tab_button = ui::icon_button("format-indent-more-symbolic", l10n::button_tab(), {
+    let tab_button = widgets::icon_button("format-indent-more-symbolic", l10n::button_tab(), {
         let f = send_tab.clone();
         move || f()
     });
-    let send_button = ui::icon_button("mail-send-symbolic", l10n::button_send(), {
+    let send_button = widgets::icon_button("mail-send-symbolic", l10n::button_send(), {
         let f = send_text.clone();
         move || f()
     });
@@ -140,30 +141,16 @@ pub fn page(state: &Rc<AppState>) -> Page {
     content.append(&field);
     content.append(&send_button);
 
-    let update = {
-        let state = state.clone();
+    widgets::bind_to_device(state, &backspace_button);
+    widgets::bind_to_device(state, &tab_button);
+    let update = widgets::bind_sensitive(state, &send_button, {
         let buffer = buffer.clone();
-        let (backspace_button, tab_button, send_button) = (
-            backspace_button.clone(),
-            tab_button.clone(),
-            send_button.clone(),
-        );
-        move || {
-            let has_device = state.active_device().is_some();
-            backspace_button.set_sensitive(has_device);
-            tab_button.set_sensitive(has_device);
-            send_button.set_sensitive(has_device && buffer.char_count() > 0);
-        }
-    };
-    update();
-    buffer.connect_changed({
-        let update = update.clone();
-        move |_| update()
+        move || buffer.char_count() > 0
     });
-    state.subscribe(update);
+    buffer.connect_changed(move |_| update());
 
     // Focus after the sidebar click has finished moving focus to its row.
-    let on_show: Rc<dyn Fn()> = Rc::new(move || {
+    let on_show: Callback = Rc::new(move || {
         let text_view = text_view.clone();
         glib::idle_add_local_once(move || {
             text_view.grab_focus();
@@ -174,7 +161,7 @@ pub fn page(state: &Rc<AppState>) -> Page {
         id: "keyboard",
         title: l10n::page_title_keyboard(),
         icon: "input-keyboard-symbolic",
-        widget: ui::page_body(&content),
+        widget: widgets::page_body(&content),
         on_add: None,
         on_show: Some(on_show),
     }

@@ -315,6 +315,23 @@ pub fn warning_priv_app() -> &'static str {
     )
 }
 
+pub fn data_backed_up(backup: &str) -> String {
+    format!(
+        "{} {backup}",
+        pick(
+            "Saved data could not be read and was moved to",
+            "Opgeslagen gegevens konden niet gelezen worden en zijn verplaatst naar",
+        )
+    )
+}
+
+pub fn data_not_saving() -> &'static str {
+    pick(
+        "Saved data could not be read; changes will not be saved",
+        "Opgeslagen gegevens konden niet gelezen worden; wijzigingen worden niet opgeslagen",
+    )
+}
+
 pub fn error_message(message: &str) -> String {
     format!("{}: {message}", pick("Error", "Fout"))
 }

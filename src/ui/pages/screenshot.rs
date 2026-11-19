@@ -1,24 +1,17 @@
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gtk::{gio, glib};
+use gtk::glib;
 
+use super::{Callback, Page};
 use crate::l10n;
 use crate::models::SettingKey;
 use crate::state::AppState;
-use crate::ui::{self, Page};
+use crate::ui::widgets::{self, PathKind};
 
 pub fn page(state: &Rc<AppState>) -> Page {
-    let directory = adw::EntryRow::builder()
-        .title(l10n::field_screenshot_directory())
-        .text(state.setting(SettingKey::ScreenshotPath))
-        .build();
-    let browse = gtk::Button::builder()
-        .label(l10n::button_browse())
-        .valign(gtk::Align::Center)
-        .css_classes(["flat"])
-        .build();
-    directory.add_suffix(&browse);
+    let directory = widgets::path_row(l10n::field_screenshot_directory(), PathKind::Folder);
+    directory.set_text(&state.setting(SettingKey::ScreenshotPath));
     let group = adw::PreferencesGroup::new();
     group.add(&directory);
 
@@ -54,23 +47,6 @@ pub fn page(state: &Rc<AppState>) -> Page {
     content.append(&picture);
     content.append(&saved_to);
 
-    browse.connect_clicked({
-        let directory = directory.clone();
-        move |button| {
-            let dialog = gtk::FileDialog::builder()
-                .accept_label(l10n::button_select())
-                .initial_folder(&gio::File::for_path(directory.text().as_str()))
-                .build();
-            let directory = directory.clone();
-            let window = button.root().and_downcast::<gtk::Window>();
-            dialog.select_folder(window.as_ref(), gio::Cancellable::NONE, move |result| {
-                if let Some(path) = result.ok().and_then(|folder| folder.path()) {
-                    directory.set_text(&path.to_string_lossy());
-                }
-            });
-        }
-    });
-
     capture.connect_clicked({
         let state = state.clone();
         let directory = directory.clone();
@@ -103,22 +79,16 @@ pub fn page(state: &Rc<AppState>) -> Page {
         }
     });
 
-    let update = {
-        let state = state.clone();
-        let capture = capture.clone();
-        move || capture.set_sensitive(state.active_device().is_some())
-    };
-    update();
-    state.subscribe(update);
+    widgets::bind_to_device(state, &capture);
 
     // Like the Flutter app, start from the default directory each time the page opens.
-    let on_show: Rc<dyn Fn()> = {
+    let on_show: Callback = {
         let state = state.clone();
         Rc::new(move || directory.set_text(&state.setting(SettingKey::ScreenshotPath)))
     };
 
     let widget = adw::BreakpointBin::builder()
-        .child(&ui::page_body(&content))
+        .child(&widgets::page_body(&content))
         .width_request(300)
         .height_request(200)
         .build();

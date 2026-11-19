@@ -19,6 +19,7 @@ impl SettingKey {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Settings {
     pub adb_path: String,
     pub emulator_path: String,
