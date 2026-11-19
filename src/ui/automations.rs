@@ -3,8 +3,8 @@ use std::rc::{Rc, Weak};
 
 use adw::prelude::*;
 
-use crate::keycodes::KEY_CODES;
 use crate::l10n;
+use crate::models::KEY_CODES;
 use crate::models::{ArgumentType, Automation, Command, CommandType, Operation};
 use crate::state::AppState;
 use crate::ui::{self, Page};

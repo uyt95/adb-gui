@@ -1,7 +1,6 @@
 //! ADB GUI: a GTK user interface on top of adb (Android Debug Bridge).
 
 mod adb;
-mod keycodes;
 mod l10n;
 mod models;
 mod state;
