@@ -1,30 +1,28 @@
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gtk::{gdk, gio};
+use gtk::gdk;
 
+use super::Page;
 use crate::l10n;
 use crate::models::InstallMode;
 use crate::state::AppState;
-use crate::ui::{self, Page};
+use crate::ui::widgets::{self, PathKind};
 
 const EXTENSION: &str = "apk";
 
 pub fn page(state: &Rc<AppState>) -> Page {
-    let path = adw::EntryRow::builder()
-        .title(l10n::field_package_path())
-        .build();
-    let browse = gtk::Button::builder()
-        .label(l10n::button_browse())
-        .valign(gtk::Align::Center)
-        .css_classes(["flat"])
-        .build();
-    path.add_suffix(&browse);
+    let path = widgets::path_row(
+        l10n::field_package_path(),
+        PathKind::File {
+            extension: Some(EXTENSION),
+        },
+    );
 
     let labels: Vec<&str> = InstallMode::ALL.iter().map(|m| m.label()).collect();
     let mode = adw::ComboRow::builder()
         .title(l10n::field_mode())
-        .model(&ui::string_list(&labels))
+        .model(&widgets::string_list(&labels))
         .build();
 
     let group = adw::PreferencesGroup::new();
@@ -60,40 +58,11 @@ pub fn page(state: &Rc<AppState>) -> Page {
         move |mode| warning.set_visible(selected_mode(mode) == InstallMode::PrivApp)
     });
 
-    browse.connect_clicked({
+    let update = widgets::bind_sensitive(state, &install, {
         let path = path.clone();
-        move |button| {
-            let filter = gtk::FileFilter::new();
-            filter.set_name(Some(EXTENSION));
-            filter.add_suffix(EXTENSION);
-            let filters = gio::ListStore::new::<gtk::FileFilter>();
-            filters.append(&filter);
-            let dialog = gtk::FileDialog::builder()
-                .accept_label(l10n::button_select())
-                .filters(&filters)
-                .default_filter(&filter)
-                .build();
-            let path = path.clone();
-            let window = button.root().and_downcast::<gtk::Window>();
-            dialog.open(window.as_ref(), gio::Cancellable::NONE, move |result| {
-                if let Some(file_path) = result.ok().and_then(|file| file.path()) {
-                    path.set_text(&file_path.to_string_lossy());
-                }
-            });
-        }
+        move || !path.text().is_empty()
     });
-
-    let update = {
-        let state = state.clone();
-        let (install, path) = (install.clone(), path.clone());
-        move || install.set_sensitive(state.active_device().is_some() && !path.text().is_empty())
-    };
-    update();
-    path.connect_changed({
-        let update = update.clone();
-        move |_| update()
-    });
-    state.subscribe(update.clone());
+    path.connect_changed(move |_| update());
 
     install.connect_clicked({
         let state = state.clone();
@@ -119,7 +88,7 @@ pub fn page(state: &Rc<AppState>) -> Page {
         }
     });
 
-    let widget = ui::page_body(&content);
+    let widget = widgets::page_body(&content);
 
     // Accept a dropped .apk file anywhere on the page.
     let drop = gtk::DropTarget::new(gdk::FileList::static_type(), gdk::DragAction::COPY);

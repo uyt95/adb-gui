@@ -2,9 +2,10 @@ use std::rc::Rc;
 
 use adw::prelude::*;
 
+use super::Page;
 use crate::l10n;
 use crate::state::AppState;
-use crate::ui::{self, Page};
+use crate::ui::widgets;
 
 enum Face {
     Icon(&'static str),
@@ -101,7 +102,6 @@ pub fn page(state: &Rc<AppState>) -> Page {
         .row_homogeneous(true)
         .column_homogeneous(true)
         .build();
-    let mut buttons = Vec::new();
     for (row, keys) in BUTTONS.iter().enumerate() {
         for (column, button) in keys.iter().enumerate() {
             let Some((face, description, key)) = button else {
@@ -118,6 +118,7 @@ pub fn page(state: &Rc<AppState>) -> Page {
                 Face::Text(label) => widget.set_label(label),
             }
             widget.update_property(&[gtk::accessible::Property::Label(description)]);
+            widgets::bind_to_device(state, &widget);
             let state = state.clone();
             let key: &'static str = key;
             widget.connect_clicked(move |_| {
@@ -126,27 +127,14 @@ pub fn page(state: &Rc<AppState>) -> Page {
                 }
             });
             grid.attach(&widget, column as i32, row as i32, 1, 1);
-            buttons.push(widget);
         }
     }
-
-    let update = {
-        let state = state.clone();
-        move || {
-            let has_device = state.active_device().is_some();
-            for button in &buttons {
-                button.set_sensitive(has_device);
-            }
-        }
-    };
-    update();
-    state.subscribe(update);
 
     Page {
         id: "remote-control",
         title: l10n::page_title_remote_control(),
         icon: "video-display-symbolic",
-        widget: ui::page_body(&grid),
+        widget: widgets::page_body(&grid),
         on_add: None,
         on_show: None,
     }

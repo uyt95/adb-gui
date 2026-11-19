@@ -5,10 +5,11 @@ use std::time::Duration;
 use adw::prelude::*;
 use gtk::glib;
 
+use super::Page;
 use crate::l10n;
 use crate::models::SettingKey;
 use crate::state::AppState;
-use crate::ui::{self, Page};
+use crate::ui::widgets;
 
 pub fn page(state: &Rc<AppState>) -> Page {
     let group = adw::PreferencesGroup::new();
@@ -46,7 +47,7 @@ pub fn page(state: &Rc<AppState>) -> Page {
         id: "settings",
         title: l10n::page_title_settings(),
         icon: "emblem-system-symbolic",
-        widget: ui::page_body(&group),
+        widget: widgets::page_body(&group),
         on_add: None,
         on_show: None,
     }
