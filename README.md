@@ -45,7 +45,7 @@ Connections, emulator parameters, proxies, automations and settings are stored i
 ## Packaging
 * `data/io.github.uyt95.AdbGui.desktop` and the icon in `data/icons/` are the desktop integration files.
 * `packaging/adb-gui.spec` builds an RPM. The `RPM` GitHub Actions workflow builds it on Fedora for every
-  push and pull request and uploads it as a build artifact. For `v*` tags it also attaches the RPM to the
+  push and pull request and uploads the binary RPM as a build artifact. For `v*` tags it also attaches the RPM to the
   GitHub release.
 
 To build the RPM locally on Fedora:

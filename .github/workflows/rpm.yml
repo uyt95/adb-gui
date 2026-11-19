@@ -45,10 +45,10 @@ jobs:
 
       - name: Build RPM
         run: |
-          rpmbuild -ba packaging/adb-gui.spec \
+          rpmbuild -bb packaging/adb-gui.spec \
             --define "version_override ${{ steps.version.outputs.version }}"
           mkdir -p dist
-          cp ~/rpmbuild/RPMS/*/*.rpm ~/rpmbuild/SRPMS/*.rpm dist/
+          cp ~/rpmbuild/RPMS/*/*.rpm dist/
           ls -l dist
 
       - uses: actions/upload-artifact@v4
