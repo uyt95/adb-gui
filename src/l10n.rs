@@ -324,5 +324,5 @@ pub fn value_none() -> &'static str {
 }
 
 pub fn keyboard_input_placeholder() -> &'static str {
-    pick("Enter keyboard input", "Voer toetsenbordinvoer in")
+    pick("Type text to send", "Typ tekst om te versturen")
 }
