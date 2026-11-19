@@ -72,8 +72,9 @@ impl Database {
     }
 
     /// Raises the id counter to the highest id in use, so that new records never
-    /// reuse an id. Needed when the counter is missing or too low in a loaded
-    /// file, for example after a hand edit or an import.
+    /// reuse an id, and gives a fresh id to every record without one (id 0).
+    /// Needed when ids or the counter are missing or too low in a loaded file,
+    /// for example after a hand edit or an import.
     pub fn repair_next_id(&mut self) {
         let highest = (self.automations.iter().map(Record::id))
             .chain(self.connections.iter().map(Record::id))
@@ -82,6 +83,16 @@ impl Database {
             .max()
             .unwrap_or(0);
         self.next_id = self.next_id.max(highest);
+        fn assign_missing<T: Record>(next_id: &mut u64, items: &mut [T]) {
+            for item in items.iter_mut().filter(|i| i.id() == 0) {
+                *next_id += 1;
+                item.set_id(*next_id);
+            }
+        }
+        assign_missing(&mut self.next_id, &mut self.automations);
+        assign_missing(&mut self.next_id, &mut self.connections);
+        assign_missing(&mut self.next_id, &mut self.emulators);
+        assign_missing(&mut self.next_id, &mut self.proxies);
     }
 }
 
@@ -215,6 +226,24 @@ mod tests {
             address: "2".into(),
         });
         assert_eq!(db.connections[1].id, 8);
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn load_gives_records_without_an_id_a_fresh_one() {
+        let dir = std::env::temp_dir().join(format!("adb-gui-no-ids-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("data.json");
+        fs::write(
+            &path,
+            r#"{"next_id":3,"connections":[{"name":"a","address":"1"},{"id":3,"name":"b","address":"2"},{"name":"c","address":"3"}]}"#,
+        )
+        .unwrap();
+        let (db, problem) = Store::new(path).load();
+        assert_eq!(problem, None);
+        let ids: Vec<u64> = db.connections.iter().map(|c| c.id).collect();
+        assert_eq!(ids, [4, 3, 5]);
+        assert_eq!(db.next_id, 5);
         fs::remove_dir_all(&dir).unwrap();
     }
 
