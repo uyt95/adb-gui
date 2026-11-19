@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use adw::prelude::*;
-use gtk::glib;
+use gtk::{gio, glib};
 
 use super::Page;
 use crate::l10n;
@@ -24,22 +24,46 @@ pub fn page(state: &Rc<AppState>) -> Page {
             .text(state.setting(key))
             .build();
 
-        // Save one second after the last edit, like the Flutter app.
+        // Save one second after the last edit, like the Flutter app. A pending
+        // edit is saved at once on Enter and when the app shuts down, so
+        // closing the window right after typing does not lose it.
         let pending: Rc<RefCell<Option<glib::SourceId>>> = Rc::default();
-        let state = state.clone();
-        row.connect_changed(move |row| {
-            if let Some(source) = pending.take() {
+        let save_now: Rc<dyn Fn()> = {
+            let (state, pending, row) = (state.clone(), pending.clone(), row.downgrade());
+            Rc::new(move || {
+                let Some(source) = pending.take() else {
+                    return;
+                };
                 source.remove();
+                if let Some(row) = row.upgrade() {
+                    let value = row.text().to_string();
+                    state.update_db(|db| db.settings.set(key, value));
+                }
+            })
+        };
+        row.connect_changed({
+            let (state, pending) = (state.clone(), pending.clone());
+            move |row| {
+                if let Some(source) = pending.take() {
+                    source.remove();
+                }
+                let value = row.text().to_string();
+                let state = state.clone();
+                let pending_inner = pending.clone();
+                let source = glib::timeout_add_local_once(Duration::from_secs(1), move || {
+                    pending_inner.take();
+                    state.update_db(|db| db.settings.set(key, value));
+                });
+                pending.replace(Some(source));
             }
-            let value = row.text().to_string();
-            let state = state.clone();
-            let pending_inner = pending.clone();
-            let source = glib::timeout_add_local_once(Duration::from_secs(1), move || {
-                pending_inner.take();
-                state.update_db(|db| db.settings.set(key, value));
-            });
-            pending.replace(Some(source));
         });
+        row.connect_entry_activated({
+            let save_now = save_now.clone();
+            move |_| save_now()
+        });
+        if let Some(app) = gio::Application::default() {
+            app.connect_shutdown(move |_| save_now());
+        }
         group.add(&row);
     }
 

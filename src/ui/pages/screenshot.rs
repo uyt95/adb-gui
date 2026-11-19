@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::rc::Rc;
 
 use adw::prelude::*;
@@ -47,10 +48,18 @@ pub fn page(state: &Rc<AppState>) -> Page {
     content.append(&picture);
     content.append(&saved_to);
 
+    // State refreshes during a capture must not turn the button back on, or
+    // a second capture would race the first on the device's temp file.
+    let busy = Rc::new(Cell::new(false));
+    let update_capture = widgets::bind_sensitive(state, &capture, {
+        let busy = busy.clone();
+        move || !busy.get()
+    });
+
     capture.connect_clicked({
         let state = state.clone();
         let directory = directory.clone();
-        move |button| {
+        move |_| {
             let Some(device) = state.active_device() else {
                 return;
             };
@@ -59,12 +68,15 @@ pub fn page(state: &Rc<AppState>) -> Page {
                 .and_then(|now| now.format("%Y%m%d-%H%M%S"))
                 .map(|s| s.to_string())
                 .unwrap_or_default();
-            button.set_sensitive(false);
-            let (button, picture, saved_to) = (button.clone(), picture.clone(), saved_to.clone());
+            busy.set(true);
+            update_capture();
+            let (busy, update_capture) = (busy.clone(), update_capture.clone());
+            let (picture, saved_to) = (picture.clone(), saved_to.clone());
             state.run(
                 move |tools| tools.take_screenshot(&device, &target, &timestamp),
                 move |state, result| {
-                    button.set_sensitive(state.active_device().is_some());
+                    busy.set(false);
+                    update_capture();
                     match result {
                         Ok(path) => {
                             picture.set_filename(Some(&path));
@@ -78,8 +90,6 @@ pub fn page(state: &Rc<AppState>) -> Page {
             );
         }
     });
-
-    widgets::bind_to_device(state, &capture);
 
     // Like the Flutter app, start from the default directory each time the page opens.
     let on_show: Callback = {
