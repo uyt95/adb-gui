@@ -23,9 +23,11 @@ pub fn page(state: &Rc<AppState>) -> Page {
     group.add(&directory);
 
     let capture = gtk::Button::builder()
-        .label(l10n::button_capture_screenshot())
+        .label(l10n::button_capture())
+        .tooltip_text(l10n::button_capture_screenshot())
         .css_classes(["suggested-action", "pill"])
         .halign(gtk::Align::Center)
+        .valign(gtk::Align::Center)
         .build();
     let picture = gtk::Picture::builder()
         .content_fit(gtk::ContentFit::Contain)
@@ -40,9 +42,15 @@ pub fn page(state: &Rc<AppState>) -> Page {
         .visible(false)
         .build();
 
+    // The capture button sits next to the directory field, and moves below
+    // it when the page is narrow (see the breakpoint below).
+    group.set_hexpand(true);
+    let controls = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+    controls.append(&group);
+    controls.append(&capture);
+
     let content = gtk::Box::new(gtk::Orientation::Vertical, 18);
-    content.append(&group);
-    content.append(&capture);
+    content.append(&controls);
     content.append(&picture);
     content.append(&saved_to);
 
@@ -109,11 +117,29 @@ pub fn page(state: &Rc<AppState>) -> Page {
         Rc::new(move || directory.set_text(&state.setting(SettingKey::ScreenshotPath)))
     };
 
+    let widget = adw::BreakpointBin::builder()
+        .child(&ui::page_body(&content))
+        .width_request(300)
+        .height_request(200)
+        .build();
+    let narrow = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
+        adw::BreakpointConditionLengthType::MaxWidth,
+        500.0,
+        adw::LengthUnit::Sp,
+    ));
+    narrow.add_setter(
+        &controls,
+        "orientation",
+        Some(&gtk::Orientation::Vertical.to_value()),
+    );
+    narrow.add_setter(&controls, "spacing", Some(&18.to_value()));
+    widget.add_breakpoint(narrow);
+
     Page {
         id: "screenshot",
         title: l10n::page_title_screenshot(),
         icon: "camera-photo-symbolic",
-        widget: ui::page_body(&content),
+        widget: widget.upcast(),
         on_add: None,
         on_show: Some(on_show),
     }

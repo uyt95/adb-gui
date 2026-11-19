@@ -41,13 +41,21 @@ pub fn build(app: &adw::Application, state: &Rc<AppState>) -> adw::ApplicationWi
         move |_| state.load_devices()
     });
 
+    // The device selector and refresh button live in the header bar, and move
+    // to a bottom bar in narrow windows (see the breakpoint below).
+    let device_controls = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+    device_controls.append(&device_selector(state));
+    device_controls.append(&refresh_button);
+
     let content_header = adw::HeaderBar::new();
     content_header.pack_start(&add_button);
-    content_header.pack_end(&refresh_button);
-    content_header.pack_end(&device_selector(state));
+    content_header.pack_end(&device_controls);
+
+    let bottom_bar = gtk::ActionBar::builder().revealed(false).build();
 
     let content_toolbar = adw::ToolbarView::new();
     content_toolbar.add_top_bar(&content_header);
+    content_toolbar.add_bottom_bar(&bottom_bar);
     content_toolbar.set_content(Some(&stack));
     let content_page = adw::NavigationPage::builder()
         .child(&content_toolbar)
@@ -139,6 +147,23 @@ pub fn build(app: &adw::Application, state: &Rc<AppState>) -> adw::ApplicationWi
         adw::LengthUnit::Sp,
     ));
     breakpoint.add_setter(&split_view, "collapsed", Some(&true.to_value()));
+    breakpoint.connect_apply({
+        let (content_header, bottom_bar, device_controls) = (
+            content_header.clone(),
+            bottom_bar.clone(),
+            device_controls.clone(),
+        );
+        move |_| {
+            content_header.remove(&device_controls);
+            bottom_bar.set_center_widget(Some(&device_controls));
+            bottom_bar.set_revealed(true);
+        }
+    });
+    breakpoint.connect_unapply(move |_| {
+        bottom_bar.set_revealed(false);
+        bottom_bar.set_center_widget(None::<&gtk::Widget>);
+        content_header.pack_end(&device_controls);
+    });
     window.add_breakpoint(breakpoint);
 
     window
@@ -152,6 +177,10 @@ fn device_selector(state: &Rc<AppState>) -> gtk::DropDown {
         .tooltip_text(l10n::field_device())
         .build();
     dropdown.update_property(&[gtk::accessible::Property::Label(l10n::field_device())]);
+    // Ellipsize long device names in the button so the header bar fits
+    // narrow windows; the popover list keeps the full names.
+    dropdown.set_factory(Some(&label_factory(Some(12))));
+    dropdown.set_list_factory(Some(&label_factory(None)));
     let updating = Rc::new(Cell::new(false));
 
     let refresh = {
@@ -206,4 +235,32 @@ fn device_selector(state: &Rc<AppState>) -> gtk::DropDown {
         }
     });
     dropdown
+}
+
+/// Item factory showing a `gtk::StringObject` as a label, optionally ellipsized.
+fn label_factory(max_width_chars: Option<i32>) -> gtk::SignalListItemFactory {
+    let factory = gtk::SignalListItemFactory::new();
+    factory.connect_setup(move |_, item| {
+        let label = gtk::Label::builder().xalign(0.0).build();
+        if let Some(chars) = max_width_chars {
+            label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+            label.set_max_width_chars(chars);
+            label.set_width_chars(chars.min(6));
+        }
+        item.downcast_ref::<gtk::ListItem>()
+            .expect("list item")
+            .set_child(Some(&label));
+    });
+    factory.connect_bind(|_, item| {
+        let item = item.downcast_ref::<gtk::ListItem>().expect("list item");
+        let text = item
+            .item()
+            .and_downcast::<gtk::StringObject>()
+            .map(|s| s.string())
+            .unwrap_or_default();
+        if let Some(label) = item.child().and_downcast::<gtk::Label>() {
+            label.set_label(&text);
+        }
+    });
+    factory
 }

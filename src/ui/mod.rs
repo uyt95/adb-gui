@@ -156,9 +156,10 @@ pub fn form_dialog(
     let weak = dialog.downgrade();
     confirm.connect_clicked(move |_| {
         if on_confirm()
-            && let Some(dialog) = weak.upgrade() {
-                dialog.close();
-            }
+            && let Some(dialog) = weak.upgrade()
+        {
+            dialog.close();
+        }
     });
 
     dialog.present(Some(parent));

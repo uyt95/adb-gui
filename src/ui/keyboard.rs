@@ -81,6 +81,20 @@ pub fn page(state: &Rc<AppState>) -> Page {
     });
     send_button.set_valign(gtk::Align::Start);
 
+    // Show each button's shortcut in its tooltip.
+    for (button, label, shortcut) in [
+        (
+            &backspace_button,
+            l10n::button_backspace(),
+            "Ctrl+Backspace",
+        ),
+        (&tab_button, l10n::button_tab(), "Ctrl+Tab"),
+        (&send_button, l10n::button_send(), "Ctrl+Enter"),
+    ] {
+        button.set_tooltip_text(Some(&format!("{label} ({shortcut})")));
+        button.update_property(&[gtk::accessible::Property::KeyShortcuts(shortcut)]);
+    }
+
     let keys = gtk::Box::new(gtk::Orientation::Vertical, 6);
     keys.append(&backspace_button);
     keys.append(&tab_button);
@@ -101,20 +115,25 @@ pub fn page(state: &Rc<AppState>) -> Page {
     });
     text_view.add_controller(shortcuts);
 
-    let heading = gtk::Label::builder()
-        .label(l10n::field_keyboard_input())
-        .xalign(0.0)
-        .css_classes(["heading"])
+    // GtkTextView has no placeholder, so overlay a dimmed label while it is empty.
+    let placeholder = gtk::Label::builder()
+        .label(l10n::keyboard_input_placeholder())
+        .halign(gtk::Align::Start)
+        .valign(gtk::Align::Start)
+        .margin_top(8)
+        .margin_start(8)
+        .can_target(false)
+        .css_classes(["dim-label"])
         .build();
-    let hint = gtk::Label::builder()
-        .label("Ctrl+Enter, Ctrl+Backspace, Ctrl+Tab")
-        .xalign(0.0)
-        .css_classes(["dim-label", "caption"])
+    buffer.connect_changed({
+        let placeholder = placeholder.clone();
+        move |buffer| placeholder.set_visible(buffer.char_count() == 0)
+    });
+    let field = gtk::Overlay::builder()
+        .child(&scrolled)
+        .hexpand(true)
         .build();
-    let field = gtk::Box::new(gtk::Orientation::Vertical, 6);
-    field.append(&heading);
-    field.append(&scrolled);
-    field.append(&hint);
+    field.add_overlay(&placeholder);
 
     let content = gtk::Box::new(gtk::Orientation::Horizontal, 12);
     content.append(&keys);
@@ -143,8 +162,12 @@ pub fn page(state: &Rc<AppState>) -> Page {
     });
     state.subscribe(update);
 
+    // Focus after the sidebar click has finished moving focus to its row.
     let on_show: Rc<dyn Fn()> = Rc::new(move || {
-        text_view.grab_focus();
+        let text_view = text_view.clone();
+        glib::idle_add_local_once(move || {
+            text_view.grab_focus();
+        });
     });
 
     Page {

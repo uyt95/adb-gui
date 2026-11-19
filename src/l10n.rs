@@ -13,13 +13,14 @@ fn lang() -> Lang {
     *LANG.get_or_init(|| {
         for var in ["LC_ALL", "LC_MESSAGES", "LANG"] {
             if let Ok(value) = std::env::var(var)
-                && !value.is_empty() {
-                    return if value.starts_with("nl") {
-                        Lang::Nl
-                    } else {
-                        Lang::En
-                    };
-                }
+                && !value.is_empty()
+            {
+                return if value.starts_with("nl") {
+                    Lang::Nl
+                } else {
+                    Lang::En
+                };
+            }
         }
         Lang::En
     })
@@ -58,6 +59,10 @@ pub fn button_cancel() -> &'static str {
 
 pub fn button_capture_screenshot() -> &'static str {
     pick("Capture screenshot", "Maak screenshot")
+}
+
+pub fn button_capture() -> &'static str {
+    pick("Capture", "Vastleggen")
 }
 
 pub fn button_connect() -> &'static str {
@@ -320,4 +325,8 @@ pub fn command_number(number: usize) -> String {
 
 pub fn value_none() -> &'static str {
     pick("No device", "Geen toestel")
+}
+
+pub fn keyboard_input_placeholder() -> &'static str {
+    pick("Type text to send", "Typ tekst om te versturen")
 }

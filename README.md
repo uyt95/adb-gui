@@ -41,3 +41,18 @@ cargo test             # unit tests (no device needed)
 ## Data
 Connections, emulator parameters, proxies, automations and settings are stored in
 `~/.local/share/adb-gui/data.json` (or `$XDG_DATA_HOME/adb-gui/data.json`).
+
+## Packaging
+* `data/io.github.uyt95.AdbGui.desktop` and the icon in `data/icons/` are the desktop integration files.
+* `packaging/adb-gui.spec` builds an RPM. The `RPM` GitHub Actions workflow builds it on Fedora for every
+  push and pull request and uploads the binary RPM as a build artifact. For `v*` tags it also attaches the RPM to the
+  GitHub release.
+
+To build the RPM locally on Fedora:
+
+```sh
+sudo dnf install rpm-build cargo rust gcc gtk4-devel libadwaita-devel desktop-file-utils
+mkdir -p ~/rpmbuild/SOURCES
+git archive --prefix=adb-gui-3.0.0/ -o ~/rpmbuild/SOURCES/adb-gui-3.0.0.tar.gz HEAD
+rpmbuild -ba packaging/adb-gui.spec
+```
