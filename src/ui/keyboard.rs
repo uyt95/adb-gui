@@ -81,6 +81,20 @@ pub fn page(state: &Rc<AppState>) -> Page {
     });
     send_button.set_valign(gtk::Align::Start);
 
+    // Show each button's shortcut in its tooltip.
+    for (button, label, shortcut) in [
+        (
+            &backspace_button,
+            l10n::button_backspace(),
+            "Ctrl+Backspace",
+        ),
+        (&tab_button, l10n::button_tab(), "Ctrl+Tab"),
+        (&send_button, l10n::button_send(), "Ctrl+Enter"),
+    ] {
+        button.set_tooltip_text(Some(&format!("{label} ({shortcut})")));
+        button.update_property(&[gtk::accessible::Property::KeyShortcuts(shortcut)]);
+    }
+
     let keys = gtk::Box::new(gtk::Orientation::Vertical, 6);
     keys.append(&backspace_button);
     keys.append(&tab_button);
@@ -106,15 +120,9 @@ pub fn page(state: &Rc<AppState>) -> Page {
         .xalign(0.0)
         .css_classes(["heading"])
         .build();
-    let hint = gtk::Label::builder()
-        .label("Ctrl+Enter, Ctrl+Backspace, Ctrl+Tab")
-        .xalign(0.0)
-        .css_classes(["dim-label", "caption"])
-        .build();
     let field = gtk::Box::new(gtk::Orientation::Vertical, 6);
     field.append(&heading);
     field.append(&scrolled);
-    field.append(&hint);
 
     let content = gtk::Box::new(gtk::Orientation::Horizontal, 12);
     content.append(&keys);

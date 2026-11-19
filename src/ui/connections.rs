@@ -199,9 +199,10 @@ fn edit_dialog(
     let weak = dialog.downgrade();
     address.connect_entry_activated(move |_| {
         if save()
-            && let Some(dialog) = weak.upgrade() {
-                dialog.close();
-            }
+            && let Some(dialog) = weak.upgrade()
+        {
+            dialog.close();
+        }
     });
     name.grab_focus();
 }

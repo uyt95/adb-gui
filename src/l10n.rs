@@ -13,13 +13,14 @@ fn lang() -> Lang {
     *LANG.get_or_init(|| {
         for var in ["LC_ALL", "LC_MESSAGES", "LANG"] {
             if let Ok(value) = std::env::var(var)
-                && !value.is_empty() {
-                    return if value.starts_with("nl") {
-                        Lang::Nl
-                    } else {
-                        Lang::En
-                    };
-                }
+                && !value.is_empty()
+            {
+                return if value.starts_with("nl") {
+                    Lang::Nl
+                } else {
+                    Lang::En
+                };
+            }
         }
         Lang::En
     })
