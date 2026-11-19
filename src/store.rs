@@ -70,6 +70,19 @@ impl Database {
     pub fn put_proxy(&mut self, item: Proxy) {
         Self::put(&mut self.next_id, &mut self.proxies, item);
     }
+
+    /// Raises the id counter to the highest id in use, so that new records never
+    /// reuse an id. Needed when the counter is missing or too low in a loaded
+    /// file, for example after a hand edit or an import.
+    pub fn repair_next_id(&mut self) {
+        let highest = (self.automations.iter().map(Record::id))
+            .chain(self.connections.iter().map(Record::id))
+            .chain(self.emulators.iter().map(Record::id))
+            .chain(self.proxies.iter().map(Record::id))
+            .max()
+            .unwrap_or(0);
+        self.next_id = self.next_id.max(highest);
+    }
 }
 
 pub struct Store {
@@ -110,7 +123,10 @@ impl Store {
     pub fn load(&self) -> (Database, Option<LoadProblem>) {
         let error = match fs::read_to_string(&self.path) {
             Ok(content) => match serde_json::from_str(&content) {
-                Ok(database) => return (database, None),
+                Ok(mut database) => {
+                    Database::repair_next_id(&mut database);
+                    return (database, None);
+                }
                 Err(error) => error.to_string(),
             },
             Err(error) if error.kind() == ErrorKind::NotFound => {
@@ -183,6 +199,27 @@ mod tests {
         assert_eq!(db.connections.len(), 2);
         assert_eq!(db.connections[1].address, "3");
         assert_ne!(db.connections[0].id, db.connections[1].id);
+    }
+
+    #[test]
+    fn load_raises_a_missing_id_counter() {
+        let dir = std::env::temp_dir().join(format!("adb-gui-ids-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("data.json");
+        fs::write(
+            &path,
+            r#"{"connections":[{"id":7,"name":"a","address":"1"}]}"#,
+        )
+        .unwrap();
+        let (mut db, problem) = Store::new(path).load();
+        assert_eq!(problem, None);
+        db.put_connection(Connection {
+            id: 0,
+            name: "b".into(),
+            address: "2".into(),
+        });
+        assert_eq!(db.connections[1].id, 8);
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
