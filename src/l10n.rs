@@ -61,6 +61,10 @@ pub fn button_capture_screenshot() -> &'static str {
     pick("Capture screenshot", "Maak screenshot")
 }
 
+pub fn button_capture() -> &'static str {
+    pick("Capture", "Vastleggen")
+}
+
 pub fn button_connect() -> &'static str {
     pick("Connect", "Verbinden")
 }
