@@ -5,10 +5,10 @@ use std::rc::Rc;
 
 use gtk::{gio, glib};
 
-use crate::adb::{self, Tools};
 use crate::l10n;
 use crate::models::{Device, Emulator, EmulatorParams, Proxy, SettingKey};
 use crate::store::{Database, Store};
+use crate::tools::{self, Tools};
 
 type Listener = Rc<dyn Fn()>;
 
@@ -132,7 +132,7 @@ impl AppState {
     /// Like [`run`](Self::run) for actions that only report errors.
     pub fn run_action(
         self: &Rc<Self>,
-        work: impl FnOnce(Tools) -> adb::Result<()> + Send + 'static,
+        work: impl FnOnce(Tools) -> tools::Result<()> + Send + 'static,
         done: impl FnOnce(&Rc<AppState>) + 'static,
     ) {
         self.run(work, move |state, result| {
@@ -242,11 +242,11 @@ fn fill_default_settings(db: &mut Database) {
     let home = home.to_string_lossy();
     let settings = &mut db.settings;
     if settings.adb_path.is_empty() {
-        settings.adb_path = adb::find_executable("adb")
+        settings.adb_path = tools::find_executable("adb")
             .unwrap_or_else(|| format!("{home}/Android/Sdk/platform-tools/adb"));
     }
     if settings.emulator_path.is_empty() {
-        settings.emulator_path = adb::find_executable("emulator")
+        settings.emulator_path = tools::find_executable("emulator")
             .unwrap_or_else(|| format!("{home}/Android/Sdk/emulator/emulator"));
     }
     if settings.screenshot_path.is_empty() {

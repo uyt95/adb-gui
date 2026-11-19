@@ -3,14 +3,19 @@
 //! Everything here runs on a worker thread; the UI calls it through
 //! [`crate::state::AppState::run`]. Errors are plain messages for display.
 
+mod parse;
+mod process;
+
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use regex::RegexBuilder;
-
 use crate::models::{
-    Automation, CommandType, Device, EmulatorParams, InstallMode, Proxy, ProxyType, Socket,
+    Automation, CommandType, Device, EmulatorParams, InstallMode, Proxy, ProxyType,
 };
+
+use parse::{parse_devices, parse_proxies, split_lines};
+pub use process::find_executable;
+use process::{execute, execute_validated};
 
 pub type Result<T> = std::result::Result<T, String>;
 
@@ -19,49 +24,6 @@ pub type Result<T> = std::result::Result<T, String>;
 pub struct Tools {
     pub adb: String,
     pub emulator: String,
-}
-
-/// Runs a command and returns its stdout, or stderr (falling back to stdout) on failure.
-pub fn execute(command: &str, arguments: &[String]) -> Result<String> {
-    let output = Command::new(command)
-        .args(arguments)
-        .stdin(Stdio::null())
-        .output()
-        .map_err(|error| format!("{command}: {error}"))?;
-    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-    if output.status.success() {
-        return Ok(stdout);
-    }
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    Err(if stderr.is_empty() {
-        stdout.trim().to_string()
-    } else {
-        stderr
-    })
-}
-
-/// Whether the output matches any of the patterns (multi-line, case-insensitive).
-/// An empty pattern list accepts any output.
-pub fn validate(output: &str, patterns: &[&str]) -> bool {
-    patterns.is_empty()
-        || patterns.iter().any(|pattern| {
-            RegexBuilder::new(pattern)
-                .multi_line(true)
-                .case_insensitive(true)
-                .build()
-                .map(|regex| regex.is_match(output))
-                .unwrap_or(false)
-        })
-}
-
-/// Runs a command and fails with its output when the output does not validate.
-pub fn execute_validated(command: &str, arguments: &[String], patterns: &[&str]) -> Result<String> {
-    let output = execute(command, arguments)?;
-    if validate(&output, patterns) {
-        Ok(output)
-    } else {
-        Err(output.trim().to_string())
-    }
 }
 
 fn strings(arguments: &[&str]) -> Vec<String> {
@@ -278,138 +240,5 @@ impl Tools {
             }
         }
         Ok(())
-    }
-}
-
-/// Finds an executable on `PATH`, like `which`.
-pub fn find_executable(name: &str) -> Option<String> {
-    let path = std::env::var_os("PATH")?;
-    std::env::split_paths(&path)
-        .map(|dir| dir.join(name))
-        .find(|candidate| {
-            use std::os::unix::fs::PermissionsExt;
-            candidate
-                .metadata()
-                .map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
-                .unwrap_or(false)
-        })
-        .map(|p| p.to_string_lossy().into_owned())
-}
-
-fn split_lines(output: &str) -> Vec<String> {
-    output
-        .lines()
-        .filter(|line| !line.starts_with("* "))
-        .map(str::to_string)
-        .collect()
-}
-
-/// Parses the output of `adb devices` (after the header line).
-pub fn parse_devices(lines: &[String]) -> Vec<Device> {
-    lines
-        .iter()
-        .skip(1)
-        .map(|line| line.trim())
-        .filter(|line| !line.is_empty())
-        .filter_map(|line| {
-            let columns: Vec<&str> = line.split('\t').collect();
-            (columns.len() == 2).then(|| Device {
-                serial: columns[0].to_string(),
-            })
-        })
-        .collect()
-}
-
-/// Parses `adb forward --list` / `adb reverse --list` lines: `<serial> <from> <to>`.
-pub fn parse_proxies(proxy_type: ProxyType, lines: &[String]) -> Vec<Proxy> {
-    lines
-        .iter()
-        .filter_map(|line| {
-            let tokens: Vec<&str> = line.split_whitespace().collect();
-            if tokens.len() != 3 {
-                return None;
-            }
-            Some(Proxy {
-                id: 0,
-                proxy_type,
-                from: Socket::parse(tokens[1])?,
-                to: Socket::parse(tokens[2])?,
-            })
-        })
-        .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::models::SocketType;
-
-    fn lines(text: &str) -> Vec<String> {
-        split_lines(text)
-    }
-
-    #[test]
-    fn parses_devices() {
-        let output = "* daemon not running; starting now at tcp:5037\n* daemon started successfully\nList of devices attached\nemulator-5554\tdevice\n192.168.1.5:5555\toffline\n\n";
-        let devices = parse_devices(&lines(output));
-        assert_eq!(
-            devices,
-            vec![
-                Device {
-                    serial: "emulator-5554".into()
-                },
-                Device {
-                    serial: "192.168.1.5:5555".into()
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn parses_proxies() {
-        let output =
-            "emulator-5554 tcp:8080 tcp:80\nemulator-5554 localabstract:x jdwp:12\ngarbage\n";
-        let proxies = parse_proxies(ProxyType::Forward, &lines(output));
-        assert_eq!(proxies.len(), 2);
-        assert_eq!(proxies[0].from.socket_type, SocketType::Tcp);
-        assert_eq!(proxies[1].to.name, "12");
-    }
-
-    #[test]
-    fn validates_like_the_flutter_app() {
-        assert!(validate("", &["^$"]));
-        assert!(validate(
-            "connected to 1.2.3.4:5555\n",
-            &["(already )?connected to .*"]
-        ));
-        assert!(validate(
-            "Performing Streamed Install\nSuccess\n",
-            &[".*success$"]
-        ));
-        assert!(!validate(
-            "failed to connect\n",
-            &["(already )?connected to .*"]
-        ));
-        assert!(validate("anything", &[]));
-    }
-
-    #[test]
-    fn pull_validation_rejects_adb_errors() {
-        let pattern = ["^(?:adb: error:)?$|^[^a]|^a[^d]"];
-        assert!(validate("/sdcard/x.png: 1 file pulled.\n", &pattern));
-        assert!(!validate(
-            "adb: error: failed to stat remote object",
-            &pattern
-        ));
-    }
-
-    #[test]
-    fn execute_reports_stderr() {
-        let error = execute("sh", &["-c".into(), "echo oops >&2; exit 1".into()]).unwrap_err();
-        assert_eq!(error, "oops");
-        assert_eq!(
-            execute("sh", &["-c".into(), "echo hi".into()]).unwrap(),
-            "hi\n"
-        );
     }
 }
