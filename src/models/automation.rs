@@ -53,7 +53,7 @@ impl Argument {
     /// because `adb shell` hands its arguments to the device shell.
     pub fn command_value(&self) -> String {
         match self.argument_type {
-            ArgumentType::Text => format!("'{}'", self.value),
+            ArgumentType::Text => crate::tools::shell_quote(&self.value),
             ArgumentType::KeyCode | ArgumentType::Static => self.value.clone(),
         }
     }
@@ -180,5 +180,12 @@ mod tests {
             command.arguments(),
             ["shell", "input", "keyboard", "text", "'hello world'"]
         );
+    }
+
+    #[test]
+    fn keyboard_command_escapes_single_quotes() {
+        let mut command = Command::new(CommandType::Adb);
+        command.operation.arguments[4].value = "don't; reboot".into();
+        assert_eq!(command.arguments()[4], r"'don'\''t; reboot'");
     }
 }

@@ -26,6 +26,12 @@ pub struct Tools {
     pub emulator: String,
 }
 
+/// Quotes `text` as one word for the device shell that `adb shell` runs its
+/// arguments in. Embedded single quotes are closed, escaped and reopened.
+pub fn shell_quote(text: &str) -> String {
+    format!("'{}'", text.replace('\'', r"'\''"))
+}
+
 fn strings(arguments: &[&str]) -> Vec<String> {
     arguments.iter().map(|a| a.to_string()).collect()
 }
@@ -148,7 +154,7 @@ impl Tools {
     }
 
     pub fn send_text(&self, device: &Device, text: &str) -> Result<()> {
-        let quoted = format!("'{text}'");
+        let quoted = shell_quote(text);
         self.adb(
             Some(device),
             strings(&["shell", "input", "keyboard", "text", &quoted]),
