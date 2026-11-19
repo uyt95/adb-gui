@@ -19,6 +19,15 @@ use process::{execute, execute_validated};
 
 pub type Result<T> = std::result::Result<T, String>;
 
+/// Proxies listed by adb for one device; see [`Tools::list_proxies`].
+#[derive(Clone, Debug, Default)]
+pub struct ListedProxies {
+    /// Proxies active on the device the list was made for.
+    pub active: Vec<Proxy>,
+    /// Forwards that adb listed for other connected devices.
+    pub other_devices: Vec<Proxy>,
+}
+
 /// Paths of the external tools, copied from the settings for use on a worker thread.
 #[derive(Clone, Debug)]
 pub struct Tools {
@@ -193,15 +202,23 @@ impl Tools {
         .map(drop)
     }
 
-    /// Forward and reverse proxies currently active on the device.
-    pub fn list_active_proxies(&self, device: &Device) -> Vec<Proxy> {
-        ProxyType::ALL
-            .into_iter()
-            .flat_map(|proxy_type| {
-                let lines = self.adb_lines(Some(device), &[proxy_type.type_name(), "--list"]);
-                parse_proxies(proxy_type, &lines)
-            })
-            .collect()
+    /// Forward and reverse proxies listed by adb, split into those active on
+    /// `device` and those of other devices. `adb forward --list` lists the
+    /// forwards of every device, even with `-s`; `reverse --list` asks the device
+    /// itself, so all of its lines belong to `device`.
+    pub fn list_proxies(&self, device: &Device) -> ListedProxies {
+        let mut listed = ListedProxies::default();
+        for proxy_type in ProxyType::ALL {
+            let lines = self.adb_lines(Some(device), &[proxy_type.type_name(), "--list"]);
+            for (serial, proxy) in parse_proxies(proxy_type, &lines) {
+                if proxy_type == ProxyType::Reverse || serial == device.serial {
+                    listed.active.push(proxy);
+                } else {
+                    listed.other_devices.push(proxy);
+                }
+            }
+        }
+        listed
     }
 
     /// Captures the screen into `directory` and returns the path of the PNG file.

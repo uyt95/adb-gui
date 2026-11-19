@@ -28,7 +28,8 @@ pub fn parse_devices(lines: &[String]) -> Vec<Device> {
 }
 
 /// Parses `adb forward --list` / `adb reverse --list` lines: `<serial> <from> <to>`.
-pub fn parse_proxies(proxy_type: ProxyType, lines: &[String]) -> Vec<Proxy> {
+/// Returns each proxy with the serial from its line.
+pub fn parse_proxies(proxy_type: ProxyType, lines: &[String]) -> Vec<(String, Proxy)> {
     lines
         .iter()
         .filter_map(|line| {
@@ -36,12 +37,13 @@ pub fn parse_proxies(proxy_type: ProxyType, lines: &[String]) -> Vec<Proxy> {
             if tokens.len() != 3 {
                 return None;
             }
-            Some(Proxy {
+            let proxy = Proxy {
                 id: 0,
                 proxy_type,
                 from: Socket::parse(tokens[1])?,
                 to: Socket::parse(tokens[2])?,
-            })
+            };
+            Some((tokens[0].to_string(), proxy))
         })
         .collect()
 }
@@ -78,7 +80,8 @@ mod tests {
             "emulator-5554 tcp:8080 tcp:80\nemulator-5554 localabstract:x jdwp:12\ngarbage\n";
         let proxies = parse_proxies(ProxyType::Forward, &lines(output));
         assert_eq!(proxies.len(), 2);
-        assert_eq!(proxies[0].from.socket_type, SocketType::Tcp);
-        assert_eq!(proxies[1].to.name, "12");
+        assert_eq!(proxies[0].0, "emulator-5554");
+        assert_eq!(proxies[0].1.from.socket_type, SocketType::Tcp);
+        assert_eq!(proxies[1].1.to.name, "12");
     }
 }

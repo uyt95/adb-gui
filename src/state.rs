@@ -218,20 +218,24 @@ impl AppState {
             return;
         };
         self.run(
-            move |tools| (device.clone(), tools.list_active_proxies(&device)),
-            |state, (device, proxies)| {
+            move |tools| (device.clone(), tools.list_proxies(&device)),
+            |state, (device, listed)| {
                 if state.active_device().as_ref() != Some(&device) {
                     return;
                 }
-                let unknown: Vec<Proxy> = {
+                // Proxies of other devices are saved too, so the page lists them,
+                // but only the selected device's proxies count as active.
+                let mut unknown: Vec<Proxy> = Vec::new();
+                {
                     let db = state.db.borrow();
-                    proxies
-                        .iter()
-                        .filter(|p| !db.proxies.iter().any(|s| s.same_mapping(p)))
-                        .cloned()
-                        .collect()
-                };
-                state.active_proxies.replace(proxies);
+                    for p in listed.active.iter().chain(&listed.other_devices) {
+                        let known = db.proxies.iter().chain(&unknown).any(|s| s.same_mapping(p));
+                        if !known {
+                            unknown.push(p.clone());
+                        }
+                    }
+                }
+                state.active_proxies.replace(listed.active);
                 state.update_db(|db| unknown.into_iter().for_each(|p| db.put_proxy(p)));
             },
         );
