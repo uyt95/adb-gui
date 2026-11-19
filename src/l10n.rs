@@ -322,3 +322,7 @@ pub fn command_number(number: usize) -> String {
 pub fn value_none() -> &'static str {
     pick("No device", "Geen toestel")
 }
+
+pub fn keyboard_input_placeholder() -> &'static str {
+    pick("Enter keyboard input", "Voer toetsenbordinvoer in")
+}

@@ -115,14 +115,25 @@ pub fn page(state: &Rc<AppState>) -> Page {
     });
     text_view.add_controller(shortcuts);
 
-    let heading = gtk::Label::builder()
-        .label(l10n::field_keyboard_input())
-        .xalign(0.0)
-        .css_classes(["heading"])
+    // GtkTextView has no placeholder, so overlay a dimmed label while it is empty.
+    let placeholder = gtk::Label::builder()
+        .label(l10n::keyboard_input_placeholder())
+        .halign(gtk::Align::Start)
+        .valign(gtk::Align::Start)
+        .margin_top(8)
+        .margin_start(8)
+        .can_target(false)
+        .css_classes(["dim-label"])
         .build();
-    let field = gtk::Box::new(gtk::Orientation::Vertical, 6);
-    field.append(&heading);
-    field.append(&scrolled);
+    buffer.connect_changed({
+        let placeholder = placeholder.clone();
+        move |buffer| placeholder.set_visible(buffer.char_count() == 0)
+    });
+    let field = gtk::Overlay::builder()
+        .child(&scrolled)
+        .hexpand(true)
+        .build();
+    field.add_overlay(&placeholder);
 
     let content = gtk::Box::new(gtk::Orientation::Horizontal, 12);
     content.append(&keys);
@@ -151,8 +162,12 @@ pub fn page(state: &Rc<AppState>) -> Page {
     });
     state.subscribe(update);
 
+    // Focus after the sidebar click has finished moving focus to its row.
     let on_show: Rc<dyn Fn()> = Rc::new(move || {
-        text_view.grab_focus();
+        let text_view = text_view.clone();
+        glib::idle_add_local_once(move || {
+            text_view.grab_focus();
+        });
     });
 
     Page {
