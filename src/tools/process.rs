@@ -27,7 +27,12 @@ pub fn execute(command: &str, arguments: &[String]) -> Result<String> {
 
 /// Whether the output matches any of the patterns (multi-line, case-insensitive).
 /// An empty pattern list accepts any output.
+///
+/// Surrounding whitespace is trimmed first. adb output ends with a newline, and in
+/// multi-line mode `^$` would otherwise match the empty spot after it, so an error
+/// message would pass a check meant for "no output".
 pub fn validate(output: &str, patterns: &[&str]) -> bool {
+    let output = output.trim();
     patterns.is_empty()
         || patterns.iter().any(|pattern| {
             RegexBuilder::new(pattern)
@@ -94,6 +99,17 @@ mod tests {
             "adb: error: failed to stat remote object",
             &pattern
         ));
+        assert!(!validate(
+            "adb: error: failed to stat remote object\n",
+            &pattern
+        ));
+    }
+
+    #[test]
+    fn empty_check_rejects_output_with_trailing_newline() {
+        assert!(validate("\n", &["^$"]));
+        assert!(!validate("Error: Unknown keycode\n", &["^$"]));
+        assert!(validate("8080\n", &[r"^\s*8080\s*$"]));
     }
 
     #[test]
