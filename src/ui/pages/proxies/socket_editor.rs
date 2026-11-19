@@ -4,7 +4,7 @@ use adw::prelude::*;
 
 use crate::l10n;
 use crate::models::{ProxyType, Socket, SocketType};
-use crate::ui::widgets;
+use crate::ui::widgets::{self, Validation};
 
 /// Type selector and name field for one end of a proxy.
 pub struct SocketEditor {
@@ -41,6 +41,12 @@ impl SocketEditor {
             .set_model(Some(&widgets::string_list(&names)));
         self.socket_type.set_selected(index as u32);
         self.types.replace(types);
+    }
+
+    /// The socket, or `None` after `validation` has flagged an empty name.
+    pub fn validated_socket(&self, validation: &Validation) -> Option<Socket> {
+        validation.require(&self.name, l10n::error_missing_name())?;
+        Some(self.socket())
     }
 
     pub fn socket(&self) -> Socket {
