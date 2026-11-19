@@ -32,6 +32,10 @@ pub fn shell_quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', r"'\''"))
 }
 
+/// What `adb forward`/`adb reverse` prints when a proxy is turned on: nothing for
+/// non-tcp sockets, or the bound tcp port (the allocated one for `tcp:0`).
+const PROXY_ACTIVATED: &str = r"^\d*$";
+
 fn strings(arguments: &[&str]) -> Vec<String> {
     arguments.iter().map(|a| a.to_string()).collect()
 }
@@ -164,7 +168,6 @@ impl Tools {
     }
 
     pub fn activate_proxy(&self, device: &Device, proxy: &Proxy) -> Result<()> {
-        let pattern = format!(r"^\s*{}\s*$", regex::escape(&proxy.from.name));
         self.adb(
             Some(device),
             vec![
@@ -172,7 +175,7 @@ impl Tools {
                 proxy.from.spec(),
                 proxy.to.spec(),
             ],
-            &[&pattern],
+            &[PROXY_ACTIVATED],
         )
         .map(drop)
     }
@@ -246,5 +249,22 @@ impl Tools {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PROXY_ACTIVATED;
+    use super::process::validate;
+
+    #[test]
+    fn proxy_activation_accepts_empty_output_or_a_port() {
+        assert!(validate("", &[PROXY_ACTIVATED]));
+        assert!(validate("8080\n", &[PROXY_ACTIVATED]));
+        assert!(validate("41235\n", &[PROXY_ACTIVATED]));
+        assert!(!validate(
+            "adb: error: cannot bind listener\n",
+            &[PROXY_ACTIVATED]
+        ));
     }
 }
