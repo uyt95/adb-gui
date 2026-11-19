@@ -62,7 +62,10 @@ impl AppState {
     pub fn show_error(&self, message: &str) {
         eprintln!("{message}");
         if let Some(overlay) = self.toast_overlay.borrow().as_ref() {
-            let toast = adw::Toast::new(&l10n::error_message(message));
+            // Toast titles are parsed as Pango markup, so escape the raw
+            // error text: `<` or `&` in it would otherwise blank the toast.
+            let text = glib::markup_escape_text(&l10n::error_message(message));
+            let toast = adw::Toast::new(&text);
             toast.set_timeout(5);
             overlay.add_toast(toast);
         }
