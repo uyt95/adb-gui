@@ -27,6 +27,23 @@ pub fn parse_devices(lines: &[String]) -> Vec<Device> {
         .collect()
 }
 
+/// Parses `emulator -list-avds` output. Only lines that are valid AVD names
+/// (letters, digits, `.`, `_` and `-`) are kept, which drops log lines such as
+/// `INFO    | Storing crashdata in: ...` that newer emulators print there.
+pub fn parse_avds(lines: &[String]) -> Vec<String> {
+    lines
+        .iter()
+        .map(|line| line.trim())
+        .filter(|line| {
+            !line.is_empty()
+                && line
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+        })
+        .map(str::to_string)
+        .collect()
+}
+
 /// Parses `adb forward --list` / `adb reverse --list` lines: `<serial> <from> <to>`.
 /// Returns each proxy with the serial from its line.
 pub fn parse_proxies(proxy_type: ProxyType, lines: &[String]) -> Vec<(String, Proxy)> {
@@ -72,6 +89,12 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn parses_avds_without_log_lines() {
+        let output = "INFO    | Storing crashdata in: /tmp/android/emu-crash.db\nPixel_7_API_34\n\nmy.avd-2\n";
+        assert_eq!(parse_avds(&lines(output)), ["Pixel_7_API_34", "my.avd-2"]);
     }
 
     #[test]

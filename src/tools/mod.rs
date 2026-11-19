@@ -13,7 +13,7 @@ use crate::models::{
     Automation, CommandType, Device, EmulatorParams, InstallMode, Proxy, ProxyType,
 };
 
-use parse::{parse_devices, parse_proxies, split_lines};
+use parse::{parse_avds, parse_devices, parse_proxies, split_lines};
 pub use process::find_executable;
 use process::{execute, execute_validated};
 
@@ -101,13 +101,7 @@ impl Tools {
 
     pub fn list_avds(&self) -> Vec<String> {
         execute(&self.emulator, &strings(&["-list-avds"]))
-            .map(|output| {
-                split_lines(&output)
-                    .into_iter()
-                    .map(|line| line.trim().to_string())
-                    .filter(|line| !line.is_empty())
-                    .collect()
-            })
+            .map(|output| parse_avds(&split_lines(&output)))
             .unwrap_or_default()
     }
 
