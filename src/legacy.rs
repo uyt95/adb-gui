@@ -518,6 +518,22 @@ mod tests {
         assert_eq!(db.settings.adb_path, "/opt/android/platform-tools/adb");
         assert_eq!(db.settings.emulator_path, "/opt/android/emulator/emulator");
         assert_eq!(db.settings.screenshot_path, "/home/me/Pictures/Screenshots");
+
+        // Imported items get fresh ids from the counter, so new items cannot clash.
+        let mut ids: Vec<u64> = (db.automations.iter().map(|i| i.id))
+            .chain(db.connections.iter().map(|i| i.id))
+            .chain(db.emulators.iter().map(|i| i.id))
+            .chain(db.proxies.iter().map(|i| i.id))
+            .collect();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), 8);
+        let mut repaired = import_bytes(SAMPLE).unwrap();
+        repaired.repair_next_id();
+        repaired.put_connection(Connection::default());
+        let new_id = repaired.connections.iter().map(|c| c.id).max().unwrap();
+        assert!(!ids.contains(&new_id));
+        assert_eq!(repaired.connections.len(), 3);
     }
 
     #[test]
