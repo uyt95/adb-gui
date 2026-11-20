@@ -43,7 +43,12 @@ pub fn shell_quote(text: &str) -> String {
 
 /// What `adb forward`/`adb reverse` prints when a proxy is turned on: nothing for
 /// non-tcp sockets, or the bound tcp port (the allocated one for `tcp:0`).
-const PROXY_ACTIVATED: &str = r"^\d*$";
+/// `\A` and `\z` anchor to the whole output; `^` and `$` would match any line.
+const PROXY_ACTIVATED: &str = r"\A\d*\z";
+
+/// No output at all. A blank line inside error output must not pass, so this
+/// anchors to the whole output rather than to a line.
+const NO_OUTPUT: &str = r"\A\z";
 
 fn strings(arguments: &[&str]) -> Vec<String> {
     arguments.iter().map(|a| a.to_string()).collect()
@@ -157,7 +162,7 @@ impl Tools {
         self.adb(
             Some(device),
             strings(&["shell", "input", "keyevent", &code]),
-            &["^$"],
+            &[NO_OUTPUT],
         )
         .map(drop)
     }
@@ -167,7 +172,7 @@ impl Tools {
         self.adb(
             Some(device),
             strings(&["shell", "input", "keyboard", "text", &quoted]),
-            &["^$"],
+            &[NO_OUTPUT],
         )
         .map(drop)
     }
@@ -193,7 +198,7 @@ impl Tools {
                 "--remove".into(),
                 proxy.from.spec(),
             ],
-            &["^$"],
+            &[NO_OUTPUT],
         )
         .map(drop)
     }
@@ -231,24 +236,27 @@ impl Tools {
         self.adb(
             device,
             strings(&["shell", "mkdir", "-p", DEVICE_DIRECTORY]),
-            &["^$"],
+            &[NO_OUTPUT],
         )?;
         self.adb(
             device,
             strings(&["shell", "screencap", "-p", &temp_path]),
-            &["^$"],
+            &[NO_OUTPUT],
         )?;
         std::fs::create_dir_all(directory).map_err(|error| format!("{directory}: {error}"))?;
-        self.adb(
+        let output = self.adb(
             device,
             vec![
                 "pull".into(),
                 temp_path.clone(),
                 path.to_string_lossy().into_owned(),
             ],
-            &["^(?:adb: error:)?$|^[^a]|^a[^d]"],
+            &[],
         )?;
-        self.adb(device, strings(&["shell", "rm", &temp_path]), &["^$"])?;
+        if has_adb_error(&output) {
+            return Err(output.trim().to_string());
+        }
+        self.adb(device, strings(&["shell", "rm", &temp_path]), &[NO_OUTPUT])?;
         Ok(path)
     }
 
@@ -265,16 +273,46 @@ impl Tools {
     }
 }
 
+/// Whether a line of the output is an adb error, e.g. from a pull that exits 0.
+fn has_adb_error(output: &str) -> bool {
+    output
+        .lines()
+        .any(|line| line.trim_start().starts_with("adb: error:"))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::PROXY_ACTIVATED;
     use super::process::validate;
+    use super::{NO_OUTPUT, PROXY_ACTIVATED, has_adb_error};
+
+    #[test]
+    fn no_output_rejects_errors_with_blank_lines() {
+        assert!(validate("", &[NO_OUTPUT]));
+        assert!(validate("\n", &[NO_OUTPUT]));
+        assert!(!validate(
+            "Error: Unknown keycode\n\nUsage: input",
+            &[NO_OUTPUT]
+        ));
+        assert!(!validate("mkdir: failed\n", &[NO_OUTPUT]));
+    }
+
+    #[test]
+    fn pull_errors_are_found_on_any_line() {
+        assert!(!has_adb_error(
+            "/sdcard/adb-gui/tmp-screenshot.png: 1 file pulled, 0 skipped.\n"
+        ));
+        assert!(!has_adb_error(""));
+        assert!(has_adb_error(
+            "adb: error: failed to stat remote object\n/sdcard/a.png: 0 files pulled\n"
+        ));
+    }
 
     #[test]
     fn proxy_activation_accepts_empty_output_or_a_port() {
         assert!(validate("", &[PROXY_ACTIVATED]));
         assert!(validate("8080\n", &[PROXY_ACTIVATED]));
         assert!(validate("41235\n", &[PROXY_ACTIVATED]));
+        assert!(!validate("8080\n\nerror: closed", &[PROXY_ACTIVATED]));
         assert!(!validate(
             "adb: error: cannot bind listener\n",
             &[PROXY_ACTIVATED]
