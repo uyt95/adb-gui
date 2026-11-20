@@ -329,9 +329,13 @@ fn import_legacy_data() -> (Database, Option<LoadProblem>) {
         return (Database::default(), None);
     };
     match legacy::import(&path) {
-        Ok(db) => {
+        Ok(Some(db)) => {
             eprintln!("Imported data from {}", path.display());
             (db, None)
+        }
+        Ok(None) => {
+            eprintln!("Skipped {}: not from the old app", path.display());
+            (Database::default(), None)
         }
         Err(error) => {
             eprintln!("Failed to import {}: {error}", path.display());

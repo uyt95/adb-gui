@@ -36,18 +36,23 @@ pub fn find() -> Option<PathBuf> {
 }
 
 /// Reads the old database at `path` and converts it to the new format.
-pub fn import(path: &Path) -> Result<Database> {
+/// Gives `None` when the file belongs to another Isar app: "default" is the
+/// name every Isar app uses unless it picks its own.
+pub fn import(path: &Path) -> Result<Option<Database>> {
     let data = fs::read(path).map_err(|error| format!("{}: {error}", path.display()))?;
     import_bytes(&data)
 }
 
-fn import_bytes(data: &[u8]) -> Result<Database> {
+fn import_bytes(data: &[u8]) -> Result<Option<Database>> {
     let mdbx = Mdbx::open(data)?;
     let mut schemas = HashMap::new();
     for (_, value) in mdbx.table("_info")? {
         let schema: Schema = serde_json::from_slice(value)
             .map_err(|error| format!("Invalid Isar schema: {error}"))?;
         schemas.insert(schema.name.clone(), schema);
+    }
+    if !is_old_app(&schemas) {
+        return Ok(None);
     }
     let isar = Isar { mdbx, schemas };
 
@@ -107,7 +112,97 @@ fn import_bytes(data: &[u8]) -> Result<Database> {
             db.settings.set(key, value);
         }
     }
-    Ok(db)
+    Ok(Some(db))
+}
+
+/// A property's name, type and embedded object target.
+type OldProperty = (&'static str, &'static str, Option<&'static str>);
+
+/// The schemas the old app wrote, as (name, [(property, type, target)]).
+/// They never changed during the app's lifetime. `Socket.hashCode` is a Dart
+/// getter that Isar stored by accident.
+const OLD_APP_SCHEMAS: &[(&str, &[OldProperty])] = &[
+    (
+        "Argument",
+        &[
+            ("inputType", "String", None),
+            ("type", "String", None),
+            ("value", "String", None),
+        ],
+    ),
+    (
+        "Automation",
+        &[
+            ("commands", "ObjectList", Some("Command")),
+            ("name", "String", None),
+        ],
+    ),
+    (
+        "Command",
+        &[
+            ("operation", "Object", Some("Operation")),
+            ("type", "String", None),
+        ],
+    ),
+    (
+        "Connection",
+        &[("address", "String", None), ("name", "String", None)],
+    ),
+    (
+        "Emulator",
+        &[
+            ("name", "String", None),
+            ("params", "Object", Some("EmulatorParams")),
+        ],
+    ),
+    (
+        "EmulatorParams",
+        &[
+            ("noSnapshotLoad", "Bool", None),
+            ("writeableSystem", "Bool", None),
+        ],
+    ),
+    (
+        "Operation",
+        &[
+            ("arguments", "ObjectList", Some("Argument")),
+            ("type", "String", None),
+        ],
+    ),
+    (
+        "Proxy",
+        &[
+            ("from", "Object", Some("Socket")),
+            ("to", "Object", Some("Socket")),
+            ("type", "String", None),
+        ],
+    ),
+    ("Setting", &[("value", "String", None)]),
+    (
+        "Socket",
+        &[
+            ("hashCode", "Long", None),
+            ("name", "String", None),
+            ("type", "String", None),
+        ],
+    ),
+];
+
+/// Whether the file holds exactly the old app's collections and fields.
+fn is_old_app(schemas: &HashMap<String, Schema>) -> bool {
+    schemas.len() == OLD_APP_SCHEMAS.len()
+        && OLD_APP_SCHEMAS.iter().all(|(name, expected)| {
+            schemas.get(*name).is_some_and(|schema| {
+                schema.properties.len() == expected.len()
+                    && schema.properties.iter().zip(expected.iter()).all(
+                        |(property, (name, kind, target))| {
+                            property.name == *name
+                                && property.kind == *kind
+                                && property.target.as_deref() == *target
+                        },
+                    )
+            })
+        })
 }
 
 fn string(object: &Map<String, Value>, name: &str) -> String {
@@ -470,7 +565,7 @@ mod tests {
 
     #[test]
     fn imports_all_collections() {
-        let db = import_bytes(SAMPLE).unwrap();
+        let db = import_bytes(SAMPLE).unwrap().unwrap();
 
         let connections: Vec<_> = db
             .connections
@@ -528,7 +623,7 @@ mod tests {
         ids.sort_unstable();
         ids.dedup();
         assert_eq!(ids.len(), 8);
-        let mut repaired = import_bytes(SAMPLE).unwrap();
+        let mut repaired = import_bytes(SAMPLE).unwrap().unwrap();
         repaired.repair_next_id();
         repaired.put_connection(Connection::default());
         let new_id = repaired.connections.iter().map(|c| c.id).max().unwrap();
@@ -538,12 +633,41 @@ mod tests {
 
     #[test]
     fn imports_multi_page_tables() {
-        let db = import_bytes(LARGE).unwrap();
+        let db = import_bytes(LARGE).unwrap().unwrap();
         assert_eq!(db.connections.len(), 301);
         let huge = db.connections.iter().find(|c| c.name == "huge").unwrap();
         assert_eq!(huge.address, "y".repeat(20000));
         assert!(db.connections.iter().any(|c| c.address == "10.0.1.43"));
         assert!(db.automations.is_empty());
+    }
+
+    #[test]
+    fn skips_other_isar_apps() {
+        let schemas = |data| {
+            let mdbx = Mdbx::open(data).unwrap();
+            let mut schemas = HashMap::new();
+            for (_, value) in mdbx.table("_info").unwrap() {
+                let schema: Schema = serde_json::from_slice(value).unwrap();
+                schemas.insert(schema.name.clone(), schema);
+            }
+            schemas
+        };
+        assert!(is_old_app(&schemas(SAMPLE)));
+        assert!(is_old_app(&schemas(LARGE)));
+
+        let mut missing = schemas(SAMPLE);
+        missing.remove("Emulator");
+        assert!(!is_old_app(&missing));
+
+        let mut extra = schemas(SAMPLE);
+        let mut other = schemas(SAMPLE).remove("Setting").unwrap();
+        other.name = "Note".into();
+        extra.insert(other.name.clone(), other);
+        assert!(!is_old_app(&extra));
+
+        let mut changed = schemas(SAMPLE);
+        changed.get_mut("Setting").unwrap().properties[0].kind = "Long".into();
+        assert!(!is_old_app(&changed));
     }
 
     #[test]
