@@ -8,15 +8,14 @@ pub struct Device {
 }
 
 impl Device {
-    /// The serial without a trailing `:port`, used to match saved connections.
-    pub fn host(&self) -> &str {
-        self.serial.split(':').next().unwrap_or(&self.serial)
-    }
-
     /// Whether a saved connection address refers to this device.
+    ///
+    /// An address without a port means port 5555, as it does for `adb connect`
+    /// and `adb disconnect`, so the shown status matches what Disconnect acts on.
     pub fn matches_address(&self, address: &str) -> bool {
         let address = address.trim();
-        address == self.serial || address == self.host()
+        address == self.serial
+            || (!address.contains(':') && self.serial == format!("{address}:5555"))
     }
 }
 
@@ -32,5 +31,14 @@ mod tests {
         assert!(device.matches_address("192.168.1.5"));
         assert!(device.matches_address("192.168.1.5:5555"));
         assert!(!device.matches_address("192.168.1.6"));
+    }
+
+    #[test]
+    fn address_without_port_only_matches_port_5555() {
+        let device = Device {
+            serial: "192.168.1.5:5556".into(),
+        };
+        assert!(!device.matches_address("192.168.1.5"));
+        assert!(device.matches_address("192.168.1.5:5556"));
     }
 }
