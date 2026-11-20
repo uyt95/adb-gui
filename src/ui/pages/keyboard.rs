@@ -41,25 +41,36 @@ pub fn page(state: &Rc<AppState>) -> Page {
         let state = state.clone();
         move || send_key(&state, "TAB")
     };
+    // While a send runs the field is read-only and Send is off, so text typed
+    // meanwhile is not cleared with the sent text and a repeated Ctrl+Enter
+    // does not type it twice.
     let send_text = {
         let state = state.clone();
-        let buffer = buffer.clone();
+        let text_view = text_view.clone();
         move || {
+            if !text_view.is_editable() {
+                return;
+            }
             let Some(device) = state.active_device() else {
                 return;
             };
+            let buffer = text_view.buffer();
             let text = buffer
                 .text(&buffer.start_iter(), &buffer.end_iter(), false)
                 .to_string();
             if text.is_empty() {
                 return;
             }
-            let buffer = buffer.clone();
-            state.run(
+            text_view.set_editable(false);
+            let text_view = text_view.clone();
+            state.run_input(
                 move |tools| tools.send_text(&device, &text),
-                move |state, result| match result {
-                    Ok(()) => buffer.set_text(""),
-                    Err(error) => state.show_error(&error),
+                move |state, result| {
+                    text_view.set_editable(true);
+                    match result {
+                        Ok(()) => text_view.buffer().set_text(""),
+                        Err(error) => state.show_error(&error),
+                    }
                 },
             );
         }
@@ -144,10 +155,14 @@ pub fn page(state: &Rc<AppState>) -> Page {
     widgets::bind_to_device(state, &backspace_button);
     widgets::bind_to_device(state, &tab_button);
     let update = widgets::bind_sensitive(state, &send_button, {
-        let buffer = buffer.clone();
-        move || buffer.char_count() > 0
+        let text_view = text_view.clone();
+        move || text_view.is_editable() && text_view.buffer().char_count() > 0
     });
-    buffer.connect_changed(move |_| update());
+    buffer.connect_changed({
+        let update = update.clone();
+        move |_| update()
+    });
+    text_view.connect_editable_notify(move |_| update());
 
     // Focus after the sidebar click has finished moving focus to its row.
     let on_show: Callback = Rc::new(move || {
@@ -169,6 +184,13 @@ pub fn page(state: &Rc<AppState>) -> Page {
 
 fn send_key(state: &Rc<AppState>, key: &'static str) {
     if let Some(device) = state.active_device() {
-        state.run_action(move |tools| tools.send_key(&device, key), |_| {});
+        state.run_input(
+            move |tools| tools.send_key(&device, key),
+            |state, result| {
+                if let Err(error) = result {
+                    state.show_error(&error);
+                }
+            },
+        );
     }
 }

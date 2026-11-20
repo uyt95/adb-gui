@@ -7,7 +7,7 @@ use super::socket_editor::SocketEditor;
 use crate::l10n;
 use crate::models::{Proxy, ProxyType, Socket, SocketType};
 use crate::state::AppState;
-use crate::ui::widgets::{self, FormTitles};
+use crate::ui::widgets::{self, FormTitles, Validation};
 
 /// Adds a proxy (`None`) or edits an existing one.
 pub fn edit_dialog(state: &Rc<AppState>, parent: &impl IsA<gtk::Widget>, proxy: Option<Proxy>) {
@@ -63,6 +63,8 @@ pub fn edit_dialog(state: &Rc<AppState>, parent: &impl IsA<gtk::Widget>, proxy: 
     content.append(&type_group);
     content.append(&from.group);
     content.append(&to.group);
+    let validation = Validation::new();
+    content.append(&validation.label);
 
     let titles = FormTitles {
         add: l10n::dialog_title_proxy_add(),
@@ -75,11 +77,17 @@ pub fn edit_dialog(state: &Rc<AppState>, parent: &impl IsA<gtk::Widget>, proxy: 
         FormTitles::confirm_label(is_new),
         &content,
         move || {
+            let Some(from) = from.validated_socket(&validation) else {
+                return false;
+            };
+            let Some(to) = to.validated_socket(&validation) else {
+                return false;
+            };
             let updated = Proxy {
                 id: proxy.id,
                 proxy_type: selected_type.get(),
-                from: from.socket(),
-                to: to.socket(),
+                from,
+                to,
             };
             state.update_db(|db| db.put_proxy(updated));
             true

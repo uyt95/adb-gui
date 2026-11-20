@@ -13,11 +13,20 @@ use crate::models::{
     Automation, CommandType, Device, EmulatorParams, InstallMode, Proxy, ProxyType,
 };
 
-use parse::{parse_devices, parse_proxies, split_lines};
+use parse::{parse_avds, parse_devices, parse_proxies, split_lines};
 pub use process::find_executable;
 use process::{execute, execute_validated};
 
 pub type Result<T> = std::result::Result<T, String>;
+
+/// Proxies listed by adb for one device; see [`Tools::list_proxies`].
+#[derive(Clone, Debug, Default)]
+pub struct ListedProxies {
+    /// Proxies active on the device the list was made for.
+    pub active: Vec<Proxy>,
+    /// Forwards that adb listed for other connected devices.
+    pub other_devices: Vec<Proxy>,
+}
 
 /// Paths of the external tools, copied from the settings for use on a worker thread.
 #[derive(Clone, Debug)]
@@ -34,7 +43,12 @@ pub fn shell_quote(text: &str) -> String {
 
 /// What `adb forward`/`adb reverse` prints when a proxy is turned on: nothing for
 /// non-tcp sockets, or the bound tcp port (the allocated one for `tcp:0`).
-const PROXY_ACTIVATED: &str = r"^\d*$";
+/// `\A` and `\z` anchor to the whole output; `^` and `$` would match any line.
+const PROXY_ACTIVATED: &str = r"\A\d*\z";
+
+/// No output at all. A blank line inside error output must not pass, so this
+/// anchors to the whole output rather than to a line.
+const NO_OUTPUT: &str = r"\A\z";
 
 fn strings(arguments: &[&str]) -> Vec<String> {
     arguments.iter().map(|a| a.to_string()).collect()
@@ -68,8 +82,10 @@ impl Tools {
             .unwrap_or_default()
     }
 
-    pub fn list_devices(&self) -> Vec<Device> {
-        parse_devices(&self.adb_lines(None, &["devices"]))
+    /// Connected devices. Fails when adb cannot start or exits with an error.
+    pub fn list_devices(&self) -> Result<Vec<Device>> {
+        execute(&self.adb, &strings(&["devices"]))
+            .map(|output| parse_devices(&split_lines(&output)))
     }
 
     pub fn connect(&self, address: &str) -> Result<()> {
@@ -90,16 +106,10 @@ impl Tools {
         .map(drop)
     }
 
-    pub fn list_avds(&self) -> Vec<String> {
+    /// Available AVD names. Fails when the emulator cannot start or exits with an error.
+    pub fn list_avds(&self) -> Result<Vec<String>> {
         execute(&self.emulator, &strings(&["-list-avds"]))
-            .map(|output| {
-                split_lines(&output)
-                    .into_iter()
-                    .map(|line| line.trim().to_string())
-                    .filter(|line| !line.is_empty())
-                    .collect()
-            })
-            .unwrap_or_default()
+            .map(|output| parse_avds(&split_lines(&output)))
     }
 
     /// Starts an emulator in the background without waiting for it.
@@ -152,7 +162,7 @@ impl Tools {
         self.adb(
             Some(device),
             strings(&["shell", "input", "keyevent", &code]),
-            &["^$"],
+            &[NO_OUTPUT],
         )
         .map(drop)
     }
@@ -162,7 +172,7 @@ impl Tools {
         self.adb(
             Some(device),
             strings(&["shell", "input", "keyboard", "text", &quoted]),
-            &["^$"],
+            &[NO_OUTPUT],
         )
         .map(drop)
     }
@@ -188,20 +198,28 @@ impl Tools {
                 "--remove".into(),
                 proxy.from.spec(),
             ],
-            &["^$"],
+            &[NO_OUTPUT],
         )
         .map(drop)
     }
 
-    /// Forward and reverse proxies currently active on the device.
-    pub fn list_active_proxies(&self, device: &Device) -> Vec<Proxy> {
-        ProxyType::ALL
-            .into_iter()
-            .flat_map(|proxy_type| {
-                let lines = self.adb_lines(Some(device), &[proxy_type.type_name(), "--list"]);
-                parse_proxies(proxy_type, &lines)
-            })
-            .collect()
+    /// Forward and reverse proxies listed by adb, split into those active on
+    /// `device` and those of other devices. `adb forward --list` lists the
+    /// forwards of every device, even with `-s`; `reverse --list` asks the device
+    /// itself, so all of its lines belong to `device`.
+    pub fn list_proxies(&self, device: &Device) -> ListedProxies {
+        let mut listed = ListedProxies::default();
+        for proxy_type in ProxyType::ALL {
+            let lines = self.adb_lines(Some(device), &[proxy_type.type_name(), "--list"]);
+            for (serial, proxy) in parse_proxies(proxy_type, &lines) {
+                if proxy_type == ProxyType::Reverse || serial == device.serial {
+                    listed.active.push(proxy);
+                } else {
+                    listed.other_devices.push(proxy);
+                }
+            }
+        }
+        listed
     }
 
     /// Captures the screen into `directory` and returns the path of the PNG file.
@@ -218,24 +236,27 @@ impl Tools {
         self.adb(
             device,
             strings(&["shell", "mkdir", "-p", DEVICE_DIRECTORY]),
-            &["^$"],
+            &[NO_OUTPUT],
         )?;
         self.adb(
             device,
             strings(&["shell", "screencap", "-p", &temp_path]),
-            &["^$"],
+            &[NO_OUTPUT],
         )?;
         std::fs::create_dir_all(directory).map_err(|error| format!("{directory}: {error}"))?;
-        self.adb(
+        let output = self.adb(
             device,
             vec![
                 "pull".into(),
                 temp_path.clone(),
                 path.to_string_lossy().into_owned(),
             ],
-            &["^(?:adb: error:)?$|^[^a]|^a[^d]"],
+            &[],
         )?;
-        self.adb(device, strings(&["shell", "rm", &temp_path]), &["^$"])?;
+        if has_adb_error(&output) {
+            return Err(output.trim().to_string());
+        }
+        self.adb(device, strings(&["shell", "rm", &temp_path]), &[NO_OUTPUT])?;
         Ok(path)
     }
 
@@ -252,16 +273,46 @@ impl Tools {
     }
 }
 
+/// Whether a line of the output is an adb error, e.g. from a pull that exits 0.
+fn has_adb_error(output: &str) -> bool {
+    output
+        .lines()
+        .any(|line| line.trim_start().starts_with("adb: error:"))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::PROXY_ACTIVATED;
     use super::process::validate;
+    use super::{NO_OUTPUT, PROXY_ACTIVATED, has_adb_error};
+
+    #[test]
+    fn no_output_rejects_errors_with_blank_lines() {
+        assert!(validate("", &[NO_OUTPUT]));
+        assert!(validate("\n", &[NO_OUTPUT]));
+        assert!(!validate(
+            "Error: Unknown keycode\n\nUsage: input",
+            &[NO_OUTPUT]
+        ));
+        assert!(!validate("mkdir: failed\n", &[NO_OUTPUT]));
+    }
+
+    #[test]
+    fn pull_errors_are_found_on_any_line() {
+        assert!(!has_adb_error(
+            "/sdcard/adb-gui/tmp-screenshot.png: 1 file pulled, 0 skipped.\n"
+        ));
+        assert!(!has_adb_error(""));
+        assert!(has_adb_error(
+            "adb: error: failed to stat remote object\n/sdcard/a.png: 0 files pulled\n"
+        ));
+    }
 
     #[test]
     fn proxy_activation_accepts_empty_output_or_a_port() {
         assert!(validate("", &[PROXY_ACTIVATED]));
         assert!(validate("8080\n", &[PROXY_ACTIVATED]));
         assert!(validate("41235\n", &[PROXY_ACTIVATED]));
+        assert!(!validate("8080\n\nerror: closed", &[PROXY_ACTIVATED]));
         assert!(!validate(
             "adb: error: cannot bind listener\n",
             &[PROXY_ACTIVATED]

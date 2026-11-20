@@ -123,7 +123,14 @@ pub fn page(state: &Rc<AppState>) -> Page {
             let key: &'static str = key;
             widget.connect_clicked(move |_| {
                 if let Some(device) = state.active_device() {
-                    state.run_action(move |tools| tools.send_key(&device, key), |_| {});
+                    state.run_input(
+                        move |tools| tools.send_key(&device, key),
+                        |state, result| {
+                            if let Err(error) = result {
+                                state.show_error(&error);
+                            }
+                        },
+                    );
                 }
             });
             grid.attach(&widget, column as i32, row as i32, 1, 1);

@@ -30,7 +30,8 @@ pub fn execute(command: &str, arguments: &[String]) -> Result<String> {
 ///
 /// Surrounding whitespace is trimmed first. adb output ends with a newline, and in
 /// multi-line mode `^$` would otherwise match the empty spot after it, so an error
-/// message would pass a check meant for "no output".
+/// message would pass a check meant for "no output". Patterns that must cover the
+/// whole output use `\A` and `\z`, since `^` and `$` match at every line.
 pub fn validate(output: &str, patterns: &[&str]) -> bool {
     let output = output.trim();
     patterns.is_empty()

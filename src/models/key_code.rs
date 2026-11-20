@@ -1143,7 +1143,7 @@ pub const KEY_CODES: &[KeyCode] = &[
         code: "KEYCODE_APOSTROPHE",
     },
     KeyCode {
-        label: "\\\\ key",
+        label: "\\ key",
         code: "KEYCODE_BACKSLASH",
     },
     KeyCode {

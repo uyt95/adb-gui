@@ -116,6 +116,12 @@ pub fn build(app: &adw::Application, state: &Rc<AppState>) -> adw::ApplicationWi
             split_view.set_show_content(true);
         }
     });
+    // Tapping the row that is already selected emits no `row-selected`, so in a
+    // collapsed split view the user would be stuck on the sidebar after Back.
+    sidebar_list.connect_row_activated({
+        let split_view = split_view.clone();
+        move |_, _| split_view.set_show_content(true)
+    });
     sidebar_list.select_row(sidebar_list.row_at_index(0).as_ref());
 
     let toast_overlay = adw::ToastOverlay::new();

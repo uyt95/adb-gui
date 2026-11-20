@@ -193,6 +193,10 @@ pub fn field_address() -> &'static str {
     pick("Address", "Adres")
 }
 
+pub fn field_command() -> &'static str {
+    pick("Command", "Commando")
+}
+
 pub fn field_device() -> &'static str {
     pick("Device", "Toestel")
 }
@@ -215,6 +219,10 @@ pub fn field_name() -> &'static str {
 
 pub fn field_no_snapshot_load() -> &'static str {
     pick("No snapshot load", "Geen snapshot start")
+}
+
+pub fn field_operation() -> &'static str {
+    pick("Operation", "Bewerking")
 }
 
 pub fn field_package_path() -> &'static str {
