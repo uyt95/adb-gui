@@ -110,6 +110,9 @@ pub enum LoadProblem {
     BackedUp(PathBuf),
     /// The file could not be moved aside, so changes will not be saved.
     NotSaving,
+    /// There was no data file, and the Flutter version's database at this
+    /// path could not be imported, so the app starts empty.
+    ImportFailed(PathBuf),
 }
 
 impl Store {

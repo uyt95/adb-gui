@@ -45,7 +45,7 @@ impl AppState {
         let (mut db, load_problem) = if store.exists() {
             store.load()
         } else {
-            (import_legacy_data(), None)
+            import_legacy_data()
         };
         fill_default_settings(&mut db);
         store.save(&db);
@@ -74,6 +74,7 @@ impl AppState {
             self.show_error(&match problem {
                 LoadProblem::BackedUp(backup) => l10n::data_backed_up(&backup.to_string_lossy()),
                 LoadProblem::NotSaving => l10n::data_not_saving().to_string(),
+                LoadProblem::ImportFailed(path) => l10n::import_failed(&path.to_string_lossy()),
             });
         }
     }
@@ -322,18 +323,19 @@ impl AppState {
 }
 
 /// Takes over the data of the Flutter version of the app on first start.
-fn import_legacy_data() -> Database {
+/// A failed import is reported to the user; it is not retried later.
+fn import_legacy_data() -> (Database, Option<LoadProblem>) {
     let Some(path) = legacy::find() else {
-        return Database::default();
+        return (Database::default(), None);
     };
     match legacy::import(&path) {
         Ok(db) => {
             eprintln!("Imported data from {}", path.display());
-            db
+            (db, None)
         }
         Err(error) => {
             eprintln!("Failed to import {}: {error}", path.display());
-            Database::default()
+            (Database::default(), Some(LoadProblem::ImportFailed(path)))
         }
     }
 }
