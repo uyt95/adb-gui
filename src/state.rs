@@ -1,6 +1,7 @@
 //! Shared application state and change notification.
 
 use std::cell::{Cell, RefCell};
+use std::collections::VecDeque;
 use std::rc::Rc;
 
 use gtk::{gio, glib};
@@ -11,6 +12,8 @@ use crate::store::{Database, LoadProblem, Store};
 use crate::tools::{self, Tools};
 
 type Listener = Rc<dyn Fn()>;
+/// A queued input send; it starts its worker when called.
+type InputJob = Box<dyn FnOnce(&Rc<AppState>)>;
 
 pub struct AppState {
     store: Store,
@@ -31,6 +34,10 @@ pub struct AppState {
     proxy_load: Cell<u64>,
     /// Shown once the toast overlay exists.
     load_problem: RefCell<Option<LoadProblem>>,
+    /// Key and text sends waiting for the one that is running, so they reach
+    /// the device in the order the user made them.
+    input_queue: RefCell<VecDeque<InputJob>>,
+    input_busy: Cell<bool>,
 }
 
 impl AppState {
@@ -52,6 +59,8 @@ impl AppState {
             device_load: Cell::new(0),
             proxy_load: Cell::new(0),
             load_problem: RefCell::new(load_problem),
+            input_queue: RefCell::default(),
+            input_busy: Cell::new(false),
         })
     }
 
@@ -145,6 +154,43 @@ impl AppState {
                 Err(_) => state.show_error("worker thread panicked"),
             }
         });
+    }
+
+    /// Like [`run`](Self::run) for key and text sends to the device. Sends run
+    /// one at a time, in the order they were made, because separate adb
+    /// processes started together can reach the device in any order.
+    pub fn run_input<T: Send + 'static>(
+        self: &Rc<Self>,
+        work: impl FnOnce(Tools) -> T + Send + 'static,
+        done: impl FnOnce(&Rc<AppState>, T) + 'static,
+    ) {
+        self.input_queue
+            .borrow_mut()
+            .push_back(Box::new(move |state: &Rc<AppState>| {
+                let tools = state.tools();
+                let state = state.clone();
+                glib::spawn_future_local(async move {
+                    match gio::spawn_blocking(move || work(tools)).await {
+                        Ok(result) => done(&state, result),
+                        Err(_) => state.show_error("worker thread panicked"),
+                    }
+                    // Also after a panic, so later sends are not stuck.
+                    state.input_busy.set(false);
+                    state.next_input();
+                });
+            }));
+        self.next_input();
+    }
+
+    fn next_input(self: &Rc<Self>) {
+        if self.input_busy.get() {
+            return;
+        }
+        let Some(job) = self.input_queue.borrow_mut().pop_front() else {
+            return;
+        };
+        self.input_busy.set(true);
+        job(self);
     }
 
     /// Like [`run`](Self::run) for actions that only report errors.

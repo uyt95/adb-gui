@@ -63,7 +63,7 @@ pub fn page(state: &Rc<AppState>) -> Page {
             }
             text_view.set_editable(false);
             let text_view = text_view.clone();
-            state.run(
+            state.run_input(
                 move |tools| tools.send_text(&device, &text),
                 move |state, result| {
                     text_view.set_editable(true);
@@ -184,6 +184,13 @@ pub fn page(state: &Rc<AppState>) -> Page {
 
 fn send_key(state: &Rc<AppState>, key: &'static str) {
     if let Some(device) = state.active_device() {
-        state.run_action(move |tools| tools.send_key(&device, key), |_| {});
+        state.run_input(
+            move |tools| tools.send_key(&device, key),
+            |state, result| {
+                if let Err(error) = result {
+                    state.show_error(&error);
+                }
+            },
+        );
     }
 }
