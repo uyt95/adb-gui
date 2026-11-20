@@ -160,22 +160,29 @@ impl CommandsEditor {
                     group.add(&row);
                 }
                 ArgumentType::KeyCode => {
-                    let labels: Vec<&str> = KEY_CODES.iter().map(|k| k.label).collect();
+                    let mut labels: Vec<&str> = KEY_CODES.iter().map(|k| k.label).collect();
+                    // A stored code that is not in the list (a hand edit or an older
+                    // list) is shown as an extra entry, so the row shows what will run.
+                    let selected = KEY_CODES
+                        .iter()
+                        .position(|k| k.code == argument.value)
+                        .unwrap_or_else(|| {
+                            labels.push(&argument.value);
+                            KEY_CODES.len()
+                        });
                     let row = adw::ComboRow::builder()
                         .title(argument.argument_type.label())
                         .model(&widgets::string_list(&labels))
-                        .selected(
-                            KEY_CODES
-                                .iter()
-                                .position(|k| k.code == argument.value)
-                                .unwrap_or(0) as u32,
-                        )
+                        .selected(selected as u32)
                         .build();
                     widgets::enable_search(&row);
+                    let unknown = argument.value.clone();
                     row.connect_selected_notify(move |row| {
-                        if let Some(key) = KEY_CODES.get(row.selected() as usize) {
-                            set_value(key.code.to_string());
-                        }
+                        let code = match KEY_CODES.get(row.selected() as usize) {
+                            Some(key) => key.code.to_string(),
+                            None => unknown.clone(),
+                        };
+                        set_value(code);
                     });
                     group.add(&row);
                 }
