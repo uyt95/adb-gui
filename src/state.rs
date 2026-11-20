@@ -25,6 +25,10 @@ pub struct AppState {
     notifying: Cell<bool>,
     pending: Cell<bool>,
     toast_overlay: RefCell<Option<adw::ToastOverlay>>,
+    /// Number of the newest device and proxy loads. A result from an older load
+    /// arrives too late to be current and is dropped.
+    device_load: Cell<u64>,
+    proxy_load: Cell<u64>,
     /// Shown once the toast overlay exists.
     load_problem: RefCell<Option<LoadProblem>>,
 }
@@ -45,6 +49,8 @@ impl AppState {
             notifying: Cell::new(false),
             pending: Cell::new(false),
             toast_overlay: RefCell::default(),
+            device_load: Cell::new(0),
+            proxy_load: Cell::new(0),
             load_problem: RefCell::new(load_problem),
         })
     }
@@ -156,9 +162,13 @@ impl AppState {
     }
 
     pub fn load_devices(self: &Rc<Self>) {
+        let load = next_load(&self.device_load);
         self.run(
             |tools| tools.list_devices(),
-            |state, result| {
+            move |state, result| {
+                if state.device_load.get() != load {
+                    return;
+                }
                 let devices = result.unwrap_or_else(|error| {
                     state.show_error(&error);
                     Vec::new()
@@ -220,6 +230,7 @@ impl AppState {
 
     /// Reloads the active proxies of the selected device and saves unknown ones.
     pub fn load_active_proxies(self: &Rc<Self>) {
+        let load = next_load(&self.proxy_load);
         let Some(device) = self.active_device() else {
             self.active_proxies.borrow_mut().clear();
             self.notify();
@@ -227,8 +238,9 @@ impl AppState {
         };
         self.run(
             move |tools| (device.clone(), tools.list_proxies(&device)),
-            |state, (device, listed)| {
-                if state.active_device().as_ref() != Some(&device) {
+            move |state, (device, listed)| {
+                if state.proxy_load.get() != load || state.active_device().as_ref() != Some(&device)
+                {
                     return;
                 }
                 // Proxies of other devices are saved too, so the page lists them,
@@ -259,6 +271,13 @@ impl AppState {
     pub fn setting(&self, key: SettingKey) -> String {
         self.db.borrow().settings.get(key).to_string()
     }
+}
+
+/// Starts a new load: bumps the counter and returns the new load's number.
+fn next_load(counter: &Cell<u64>) -> u64 {
+    let load = counter.get() + 1;
+    counter.set(load);
+    load
 }
 
 fn fill_default_settings(db: &mut Database) {
