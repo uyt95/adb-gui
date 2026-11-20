@@ -32,11 +32,17 @@ pub fn device_selector(state: &Rc<AppState>) -> gtk::DropDown {
             let labels: Vec<String> = devices
                 .iter()
                 .map(|device| {
-                    connections
+                    let name = connections
                         .iter()
                         .find(|c| device.matches_address(&c.address))
                         .map(|c| c.name.clone())
-                        .unwrap_or_else(|| device.serial.clone())
+                        .unwrap_or_else(|| device.serial.clone());
+                    // Show why a device cannot be used, e.g. "Phone (unauthorized)".
+                    if device.is_ready() {
+                        name
+                    } else {
+                        format!("{name} ({})", device.state)
+                    }
                 })
                 .collect();
             let labels: Vec<&str> = if labels.is_empty() {

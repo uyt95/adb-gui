@@ -22,6 +22,7 @@ pub fn parse_devices(lines: &[String]) -> Vec<Device> {
             let columns: Vec<&str> = line.split('\t').collect();
             (columns.len() == 2).then(|| Device {
                 serial: columns[0].to_string(),
+                state: columns[1].trim().to_string(),
             })
         })
         .collect()
@@ -82,10 +83,12 @@ mod tests {
             devices,
             vec![
                 Device {
-                    serial: "emulator-5554".into()
+                    serial: "emulator-5554".into(),
+                    state: "device".into(),
                 },
                 Device {
-                    serial: "192.168.1.5:5555".into()
+                    serial: "192.168.1.5:5555".into(),
+                    state: "offline".into(),
                 },
             ]
         );

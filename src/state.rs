@@ -173,9 +173,7 @@ impl AppState {
                     state.show_error(&error);
                     Vec::new()
                 });
-                let active = state.active_device();
-                let keep = active.filter(|a| devices.contains(a));
-                let next = keep.or_else(|| devices.first().cloned());
+                let next = choose_active_device(&devices, state.active_device().as_ref());
                 state.devices.replace(devices);
                 if *state.active_device.borrow() == next {
                     state.notify();
@@ -273,6 +271,20 @@ impl AppState {
     }
 }
 
+/// Picks the active device after a reload of the device list.
+///
+/// The current device is kept while it is listed, with its new state, unless
+/// it is not ready (for example `unauthorized` or `offline`) and another
+/// device is. Otherwise the first ready device is chosen, or the first device
+/// when none is ready.
+fn choose_active_device(devices: &[Device], current: Option<&Device>) -> Option<Device> {
+    let first_ready = devices.iter().find(|d| d.is_ready());
+    let kept = current
+        .and_then(|current| devices.iter().find(|d| d.serial == current.serial))
+        .filter(|d| d.is_ready() || first_ready.is_none());
+    kept.or(first_ready).or(devices.first()).cloned()
+}
+
 /// Starts a new load: bumps the counter and returns the new load's number.
 fn next_load(counter: &Cell<u64>) -> u64 {
     let load = counter.get() + 1;
@@ -294,5 +306,45 @@ fn fill_default_settings(db: &mut Database) {
     }
     if settings.screenshot_path.is_empty() {
         settings.screenshot_path = format!("{home}/Pictures/Screenshots");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn device(serial: &str, state: &str) -> Device {
+        Device {
+            serial: serial.into(),
+            state: state.into(),
+        }
+    }
+
+    #[test]
+    fn active_device_prefers_ready_devices() {
+        let offline = device("192.168.1.5:5555", "offline");
+        let ready = device("emulator-5554", "device");
+        let devices = vec![offline.clone(), ready.clone()];
+        assert_eq!(choose_active_device(&devices, None), Some(ready.clone()));
+        assert_eq!(
+            choose_active_device(&devices, Some(&offline)),
+            Some(ready.clone())
+        );
+        let other = device("emulator-5556", "device");
+        let devices = vec![ready.clone(), other.clone()];
+        assert_eq!(choose_active_device(&devices, Some(&other)), Some(other));
+    }
+
+    #[test]
+    fn active_device_falls_back_to_unready_devices() {
+        let booting = device("emulator-5554", "offline");
+        let devices = vec![device("emulator-5554", "device")];
+        assert_eq!(
+            choose_active_device(&devices, Some(&booting)),
+            Some(devices[0].clone())
+        );
+        let devices = vec![booting.clone()];
+        assert_eq!(choose_active_device(&devices, None), Some(booting));
+        assert_eq!(choose_active_device(&[], None), None);
     }
 }
