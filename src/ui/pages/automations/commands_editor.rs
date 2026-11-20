@@ -101,7 +101,7 @@ impl CommandsEditor {
         // Command type. Only ADB exists today, so selecting it changes nothing.
         let command_labels: Vec<&str> = CommandType::ALL.iter().map(|t| t.label()).collect();
         let command_row = adw::ComboRow::builder()
-            .title("Command")
+            .title(l10n::field_command())
             .model(&widgets::string_list(&command_labels))
             .selected(
                 CommandType::ALL
@@ -115,7 +115,7 @@ impl CommandsEditor {
         let operations = command.command_type.operations();
         let operation_labels: Vec<&str> = operations.iter().map(|o| o.label()).collect();
         let operation_row = adw::ComboRow::builder()
-            .title("Operation")
+            .title(l10n::field_operation())
             .model(&widgets::string_list(&operation_labels))
             .selected(
                 operations
