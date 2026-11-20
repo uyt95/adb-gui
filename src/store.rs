@@ -127,8 +127,10 @@ impl Store {
         gtk::glib::user_data_dir().join("adb-gui").join("data.json")
     }
 
+    /// Whether the data file may exist. Only a file that is surely missing
+    /// gives false; when it cannot be checked, `load` reports the problem.
     pub fn exists(&self) -> bool {
-        self.path.exists()
+        self.path.try_exists().unwrap_or(true)
     }
 
     /// Loads the database. A missing file gives an empty database. A file
