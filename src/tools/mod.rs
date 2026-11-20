@@ -77,8 +77,10 @@ impl Tools {
             .unwrap_or_default()
     }
 
-    pub fn list_devices(&self) -> Vec<Device> {
-        parse_devices(&self.adb_lines(None, &["devices"]))
+    /// Connected devices. Fails when adb cannot start or exits with an error.
+    pub fn list_devices(&self) -> Result<Vec<Device>> {
+        execute(&self.adb, &strings(&["devices"]))
+            .map(|output| parse_devices(&split_lines(&output)))
     }
 
     pub fn connect(&self, address: &str) -> Result<()> {
@@ -99,10 +101,10 @@ impl Tools {
         .map(drop)
     }
 
-    pub fn list_avds(&self) -> Vec<String> {
+    /// Available AVD names. Fails when the emulator cannot start or exits with an error.
+    pub fn list_avds(&self) -> Result<Vec<String>> {
         execute(&self.emulator, &strings(&["-list-avds"]))
             .map(|output| parse_avds(&split_lines(&output)))
-            .unwrap_or_default()
     }
 
     /// Starts an emulator in the background without waiting for it.

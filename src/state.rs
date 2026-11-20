@@ -158,7 +158,11 @@ impl AppState {
     pub fn load_devices(self: &Rc<Self>) {
         self.run(
             |tools| tools.list_devices(),
-            |state, devices| {
+            |state, result| {
+                let devices = result.unwrap_or_else(|error| {
+                    state.show_error(&error);
+                    Vec::new()
+                });
                 let active = state.active_device();
                 let keep = active.filter(|a| devices.contains(a));
                 let next = keep.or_else(|| devices.first().cloned());
@@ -175,7 +179,11 @@ impl AppState {
     pub fn load_emulators(self: &Rc<Self>) {
         self.run(
             |tools| tools.list_avds(),
-            |state, names| {
+            |state, result| {
+                let names = result.unwrap_or_else(|error| {
+                    state.show_error(&error);
+                    Vec::new()
+                });
                 let missing: Vec<String> = {
                     let db = state.db.borrow();
                     names
