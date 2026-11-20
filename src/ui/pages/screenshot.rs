@@ -64,9 +64,13 @@ pub fn page(state: &Rc<AppState>) -> Page {
                 return;
             };
             let target = directory.text().to_string();
+            // Milliseconds keep two captures in the same second from overwriting
+            // each other.
             let timestamp = glib::DateTime::now_local()
-                .and_then(|now| now.format("%Y%m%d-%H%M%S"))
-                .map(|s| s.to_string())
+                .and_then(|now| {
+                    let seconds = now.format("%Y%m%d-%H%M%S")?;
+                    Ok(format!("{seconds}-{:03}", now.microsecond() / 1000))
+                })
                 .unwrap_or_default();
             busy.set(true);
             update_capture();
