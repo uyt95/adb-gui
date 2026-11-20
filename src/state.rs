@@ -2,6 +2,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use gtk::{gio, glib};
@@ -42,13 +43,19 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(store: Store) -> Rc<AppState> {
-        let (mut db, load_problem) = if store.exists() {
-            store.load()
+        let (mut db, load_problem, imported) = if store.exists() {
+            let (db, problem) = store.load();
+            (db, problem, None)
         } else {
             import_legacy_data()
         };
         fill_default_settings(&mut db);
-        store.save(&db);
+        // The old data is removed only once the imported copy is on disk.
+        if store.save(&db)
+            && let Some(path) = imported
+        {
+            legacy::remove(&path);
+        }
         Rc::new(AppState {
             store,
             db: RefCell::new(db),
@@ -324,22 +331,26 @@ impl AppState {
 
 /// Takes over the data of the Flutter version of the app on first start.
 /// A failed import is reported to the user; it is not retried later.
-fn import_legacy_data() -> (Database, Option<LoadProblem>) {
+fn import_legacy_data() -> (Database, Option<LoadProblem>, Option<PathBuf>) {
     let Some(path) = legacy::find() else {
-        return (Database::default(), None);
+        return (Database::default(), None, None);
     };
     match legacy::import(&path) {
         Ok(Some(db)) => {
             eprintln!("Imported data from {}", path.display());
-            (db, None)
+            (db, None, Some(path))
         }
         Ok(None) => {
             eprintln!("Skipped {}: not from the old app", path.display());
-            (Database::default(), None)
+            (Database::default(), None, None)
         }
         Err(error) => {
             eprintln!("Failed to import {}: {error}", path.display());
-            (Database::default(), Some(LoadProblem::ImportFailed(path)))
+            (
+                Database::default(),
+                Some(LoadProblem::ImportFailed(path)),
+                None,
+            )
         }
     }
 }

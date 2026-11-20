@@ -171,12 +171,17 @@ impl Store {
         }
     }
 
-    pub fn save(&self, database: &Database) {
+    /// Saves the database and tells whether it is now on disk.
+    pub fn save(&self, database: &Database) -> bool {
         if self.read_only.get() {
-            return;
+            return false;
         }
-        if let Err(error) = write_atomic(&self.path, database) {
-            eprintln!("Failed to save {}: {error}", self.path.display());
+        match write_atomic(&self.path, database) {
+            Ok(()) => true,
+            Err(error) => {
+                eprintln!("Failed to save {}: {error}", self.path.display());
+                false
+            }
         }
     }
 }

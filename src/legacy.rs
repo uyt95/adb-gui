@@ -35,6 +35,25 @@ pub fn find() -> Option<PathBuf> {
         .find(|path| path.is_file())
 }
 
+/// Deletes the old database at `path` and the lock files Isar and libmdbx
+/// keep next to it. Called after a successful import, once the imported data
+/// is saved. Failures are only logged: the import never runs again anyway.
+pub fn remove(path: &Path) {
+    let mut paths = vec![path.to_path_buf()];
+    for suffix in [".lock", "-lck"] {
+        let mut name = path.file_name().unwrap_or_default().to_os_string();
+        name.push(suffix);
+        paths.push(path.with_file_name(name));
+    }
+    for path in paths {
+        match fs::remove_file(&path) {
+            Ok(()) => eprintln!("Removed {}", path.display()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => eprintln!("Failed to remove {}: {error}", path.display()),
+        }
+    }
+}
+
 /// Reads the old database at `path` and converts it to the new format.
 /// Gives `None` when the file belongs to another Isar app: "default" is the
 /// name every Isar app uses unless it picks its own.
@@ -629,6 +648,27 @@ mod tests {
         let new_id = repaired.connections.iter().map(|c| c.id).max().unwrap();
         assert!(!ids.contains(&new_id));
         assert_eq!(repaired.connections.len(), 3);
+    }
+
+    #[test]
+    fn remove_deletes_database_and_lock_files_only() {
+        let dir = std::env::temp_dir().join(format!("adb-gui-legacy-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let names = [
+            "default.isar",
+            "default.isar.lock",
+            "default.isar-lck",
+            "other.txt",
+        ];
+        for name in names {
+            fs::write(dir.join(name), b"x").unwrap();
+        }
+        remove(&dir.join("default.isar"));
+        let left: Vec<_> = names.iter().filter(|n| dir.join(n).exists()).collect();
+        assert_eq!(left, [&"other.txt"]);
+        // Missing files are fine.
+        remove(&dir.join("default.isar"));
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
