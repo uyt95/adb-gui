@@ -2,14 +2,15 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use gtk::{gio, glib};
 
-use crate::l10n;
 use crate::models::{Device, Emulator, EmulatorParams, Proxy, SettingKey};
 use crate::store::{Database, LoadProblem, Store};
 use crate::tools::{self, Tools};
+use crate::{l10n, legacy};
 
 type Listener = Rc<dyn Fn()>;
 /// A queued input send; it starts its worker when called.
@@ -42,9 +43,19 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(store: Store) -> Rc<AppState> {
-        let (mut db, load_problem) = store.load();
+        let (mut db, load_problem, imported) = if store.exists() {
+            let (db, problem) = store.load();
+            (db, problem, None)
+        } else {
+            import_legacy_data()
+        };
         fill_default_settings(&mut db);
-        store.save(&db);
+        // The old data is removed only once the imported copy is on disk.
+        if store.save(&db)
+            && let Some(path) = imported
+        {
+            legacy::remove(&path);
+        }
         Rc::new(AppState {
             store,
             db: RefCell::new(db),
@@ -70,6 +81,7 @@ impl AppState {
             self.show_error(&match problem {
                 LoadProblem::BackedUp(backup) => l10n::data_backed_up(&backup.to_string_lossy()),
                 LoadProblem::NotSaving => l10n::data_not_saving().to_string(),
+                LoadProblem::ImportFailed(path) => l10n::import_failed(&path.to_string_lossy()),
             });
         }
     }
@@ -314,6 +326,32 @@ impl AppState {
 
     pub fn setting(&self, key: SettingKey) -> String {
         self.db.borrow().settings.get(key).to_string()
+    }
+}
+
+/// Takes over the data of the Flutter version of the app on first start.
+/// A failed import is reported to the user; it is not retried later.
+fn import_legacy_data() -> (Database, Option<LoadProblem>, Option<PathBuf>) {
+    let Some(path) = legacy::find() else {
+        return (Database::default(), None, None);
+    };
+    match legacy::import(&path) {
+        Ok(Some(db)) => {
+            eprintln!("Imported data from {}", path.display());
+            (db, None, Some(path))
+        }
+        Ok(None) => {
+            eprintln!("Skipped {}: not from the old app", path.display());
+            (Database::default(), None, None)
+        }
+        Err(error) => {
+            eprintln!("Failed to import {}: {error}", path.display());
+            (
+                Database::default(),
+                Some(LoadProblem::ImportFailed(path)),
+                None,
+            )
+        }
     }
 }
 

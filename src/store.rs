@@ -110,6 +110,9 @@ pub enum LoadProblem {
     BackedUp(PathBuf),
     /// The file could not be moved aside, so changes will not be saved.
     NotSaving,
+    /// There was no data file, and the Flutter version's database at this
+    /// path could not be imported, so the app starts empty.
+    ImportFailed(PathBuf),
 }
 
 impl Store {
@@ -122,6 +125,12 @@ impl Store {
 
     pub fn default_path() -> PathBuf {
         gtk::glib::user_data_dir().join("adb-gui").join("data.json")
+    }
+
+    /// Whether the data file may exist. Only a file that is surely missing
+    /// gives false; when it cannot be checked, `load` reports the problem.
+    pub fn exists(&self) -> bool {
+        self.path.try_exists().unwrap_or(true)
     }
 
     /// Loads the database. A missing file gives an empty database. A file
@@ -162,12 +171,17 @@ impl Store {
         }
     }
 
-    pub fn save(&self, database: &Database) {
+    /// Saves the database and tells whether it is now on disk.
+    pub fn save(&self, database: &Database) -> bool {
         if self.read_only.get() {
-            return;
+            return false;
         }
-        if let Err(error) = write_atomic(&self.path, database) {
-            eprintln!("Failed to save {}: {error}", self.path.display());
+        match write_atomic(&self.path, database) {
+            Ok(()) => true,
+            Err(error) => {
+                eprintln!("Failed to save {}: {error}", self.path.display());
+                false
+            }
         }
     }
 }

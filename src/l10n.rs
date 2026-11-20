@@ -340,6 +340,16 @@ pub fn data_not_saving() -> &'static str {
     )
 }
 
+pub fn import_failed(path: &str) -> String {
+    format!(
+        "{} {path}",
+        pick(
+            "Data of the previous version could not be imported from",
+            "Gegevens van de vorige versie konden niet geïmporteerd worden uit",
+        )
+    )
+}
+
 pub fn error_message(message: &str) -> String {
     format!("{}: {message}", pick("Error", "Fout"))
 }
