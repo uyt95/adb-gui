@@ -20,10 +20,7 @@ impl SocketEditor {
         let editor = SocketEditor {
             group: adw::PreferencesGroup::builder().title(title).build(),
             socket_type: adw::ComboRow::builder().title(l10n::field_type()).build(),
-            name: adw::EntryRow::builder()
-                .title(l10n::field_name())
-                .text(&socket.name)
-                .build(),
+            name: widgets::entry_row(l10n::field_name(), &socket.name),
             types: Default::default(),
         };
         editor.group.add(&editor.socket_type);
