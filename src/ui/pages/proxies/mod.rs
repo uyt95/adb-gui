@@ -16,6 +16,11 @@ use edit_dialog::edit_dialog;
 pub fn page(state: &Rc<AppState>) -> Page {
     let widget = widgets::list_page(
         state,
+        widgets::EmptyState {
+            icon: "network-transmit-receive-symbolic",
+            title: l10n::empty_proxies_title(),
+            description: l10n::empty_proxies_description(),
+        },
         |state| {
             state
                 .db

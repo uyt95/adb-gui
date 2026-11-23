@@ -13,7 +13,16 @@ use crate::ui::widgets;
 use params_dialog::params_dialog;
 
 pub fn page(state: &Rc<AppState>) -> Page {
-    let widget = widgets::list_page(state, |state| state.emulators(), row);
+    let widget = widgets::list_page(
+        state,
+        widgets::EmptyState {
+            icon: "phone-symbolic",
+            title: l10n::empty_emulators_title(),
+            description: l10n::empty_emulators_description(),
+        },
+        |state| state.emulators(),
+        row,
+    );
 
     let on_show: Callback = {
         let state = state.clone();

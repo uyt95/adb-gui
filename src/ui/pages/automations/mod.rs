@@ -14,7 +14,16 @@ use crate::ui::widgets;
 use edit_dialog::edit_dialog;
 
 pub fn page(state: &Rc<AppState>) -> Page {
-    let widget = widgets::list_page(state, |state| state.db.borrow().automations.clone(), row);
+    let widget = widgets::list_page(
+        state,
+        widgets::EmptyState {
+            icon: "media-playlist-repeat-symbolic",
+            title: l10n::empty_automations_title(),
+            description: l10n::empty_automations_description(),
+        },
+        |state| state.db.borrow().automations.clone(),
+        row,
+    );
 
     let on_add: Callback = {
         let state = state.clone();
