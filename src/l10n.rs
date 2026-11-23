@@ -296,8 +296,48 @@ pub fn page_title_settings() -> &'static str {
     pick("Settings", "Instellingen")
 }
 
-pub fn table_empty() -> &'static str {
-    pick("No data", "Geen data")
+pub fn empty_automations_title() -> &'static str {
+    pick("No automations", "Geen automatiseringen")
+}
+
+pub fn empty_automations_description() -> &'static str {
+    pick(
+        "Add an automation with the + button to run a series of commands in one go",
+        "Voeg een automatisering toe met de + knop om een reeks commando's in één keer uit te voeren",
+    )
+}
+
+pub fn empty_connections_title() -> &'static str {
+    pick("No connections", "Geen connecties")
+}
+
+pub fn empty_connections_description() -> &'static str {
+    pick(
+        "Add a connection with the + button to connect to a device over the network",
+        "Voeg een connectie toe met de + knop om via het netwerk met een toestel te verbinden",
+    )
+}
+
+pub fn empty_emulators_title() -> &'static str {
+    pick("No emulators", "Geen emulators")
+}
+
+pub fn empty_emulators_description() -> &'static str {
+    pick(
+        "No Android virtual devices were found. Create one in Android Studio, or check the emulator path in Settings",
+        "Er zijn geen Android virtual devices gevonden. Maak er een aan in Android Studio, of controleer het emulatorpad in Instellingen",
+    )
+}
+
+pub fn empty_proxies_title() -> &'static str {
+    pick("No proxies", "Geen proxies")
+}
+
+pub fn empty_proxies_description() -> &'static str {
+    pick(
+        "Add a proxy with the + button to forward a port to or from the device",
+        "Voeg een proxy toe met de + knop om een poort van of naar het toestel door te sturen",
+    )
 }
 
 pub fn value_active() -> &'static str {

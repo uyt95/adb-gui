@@ -15,6 +15,11 @@ use edit_dialog::edit_dialog;
 pub fn page(state: &Rc<AppState>) -> Page {
     let widget = widgets::list_page(
         state,
+        widgets::EmptyState {
+            icon: "network-wired-symbolic",
+            title: l10n::empty_connections_title(),
+            description: l10n::empty_connections_description(),
+        },
         |state| {
             let devices = state.devices.borrow();
             state

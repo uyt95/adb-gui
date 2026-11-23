@@ -57,20 +57,12 @@ pub fn status_label(text: &str, positive: bool) -> gtk::Label {
         .build()
 }
 
-/// A boxed list that shows "No data" when empty.
+/// A boxed list without selection.
 pub fn boxed_list() -> gtk::ListBox {
-    let list = gtk::ListBox::builder()
+    gtk::ListBox::builder()
         .selection_mode(gtk::SelectionMode::None)
         .css_classes(["boxed-list"])
-        .build();
-    let placeholder = gtk::Label::builder()
-        .label(l10n::table_empty())
-        .css_classes(["dim-label"])
-        .margin_top(18)
-        .margin_bottom(18)
-        .build();
-    list.set_placeholder(Some(&placeholder));
-    list
+        .build()
 }
 
 /// A scrollable, width-clamped page body.
