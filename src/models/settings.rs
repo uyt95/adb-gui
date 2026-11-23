@@ -24,6 +24,8 @@ pub struct Settings {
     pub adb_path: String,
     pub emulator_path: String,
     pub screenshot_path: String,
+    /// Height of the console panel in pixels; 0 means the default height.
+    pub console_height: i32,
 }
 
 impl Settings {

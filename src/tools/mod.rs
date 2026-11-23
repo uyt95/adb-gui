@@ -3,6 +3,7 @@
 //! Everything here runs on a worker thread; the UI calls it through
 //! [`crate::state::AppState::run`]. Errors are plain messages for display.
 
+mod log;
 mod parse;
 mod process;
 
@@ -13,9 +14,10 @@ use crate::models::{
     Automation, CommandType, Device, EmulatorParams, InstallMode, Proxy, ProxyType,
 };
 
+pub use log::{CommandLog, Record, RecordState, format_duration};
 use parse::{parse_avds, parse_devices, parse_proxies, split_lines};
 pub use process::find_executable;
-use process::{execute, execute_validated};
+use process::{execute, execute_checked, execute_validated};
 
 pub type Result<T> = std::result::Result<T, String>;
 
@@ -33,6 +35,8 @@ pub struct ListedProxies {
 pub struct Tools {
     pub adb: String,
     pub emulator: String,
+    /// Where every command run through these tools is recorded.
+    pub log: CommandLog,
 }
 
 /// Quotes `text` as one word for the device shell that `adb shell` runs its
@@ -72,19 +76,28 @@ impl Tools {
         arguments: Vec<String>,
         patterns: &[&str],
     ) -> Result<String> {
-        execute_validated(&self.adb, &adb_arguments(device, arguments), patterns)
+        execute_validated(
+            &self.log,
+            &self.adb,
+            &adb_arguments(device, arguments),
+            patterns,
+        )
     }
 
     /// Output lines of an adb command, without `* daemon ...` notices. Errors give no lines.
     fn adb_lines(&self, device: Option<&Device>, arguments: &[&str]) -> Vec<String> {
-        execute(&self.adb, &adb_arguments(device, strings(arguments)))
-            .map(|output| split_lines(&output))
-            .unwrap_or_default()
+        execute(
+            &self.log,
+            &self.adb,
+            &adb_arguments(device, strings(arguments)),
+        )
+        .map(|output| split_lines(&output))
+        .unwrap_or_default()
     }
 
     /// Connected devices. Fails when adb cannot start or exits with an error.
     pub fn list_devices(&self) -> Result<Vec<Device>> {
-        execute(&self.adb, &strings(&["devices"]))
+        execute(&self.log, &self.adb, &strings(&["devices"]))
             .map(|output| parse_devices(&split_lines(&output)))
     }
 
@@ -108,7 +121,7 @@ impl Tools {
 
     /// Available AVD names. Fails when the emulator cannot start or exits with an error.
     pub fn list_avds(&self) -> Result<Vec<String>> {
-        execute(&self.emulator, &strings(&["-list-avds"]))
+        execute(&self.log, &self.emulator, &strings(&["-list-avds"]))
             .map(|output| parse_avds(&split_lines(&output)))
     }
 
@@ -121,13 +134,19 @@ impl Tools {
         if params.writeable_system {
             arguments.push("-writable-system".into());
         }
+        let entry = self.log.start(&self.emulator, &arguments);
         let mut child = Command::new(&self.emulator)
             .args(&arguments)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .map_err(|error| format!("{}: {error}", self.emulator))?;
+            .map_err(|error| {
+                let message = format!("{}: {error}", self.emulator);
+                entry.not_started(&message);
+                message
+            })?;
+        entry.launched();
         // Reap the process when it exits so it does not linger as a zombie.
         std::thread::spawn(move || child.wait());
         Ok(())
@@ -244,18 +263,20 @@ impl Tools {
             &[NO_OUTPUT],
         )?;
         std::fs::create_dir_all(directory).map_err(|error| format!("{directory}: {error}"))?;
-        let output = self.adb(
-            device,
-            vec![
-                "pull".into(),
-                temp_path.clone(),
-                path.to_string_lossy().into_owned(),
-            ],
-            &[],
+        // A pull can exit with 0 and still print an error.
+        execute_checked(
+            &self.log,
+            &self.adb,
+            &adb_arguments(
+                device,
+                vec![
+                    "pull".into(),
+                    temp_path.clone(),
+                    path.to_string_lossy().into_owned(),
+                ],
+            ),
+            |output| !has_adb_error(output),
         )?;
-        if has_adb_error(&output) {
-            return Err(output.trim().to_string());
-        }
         self.adb(device, strings(&["shell", "rm", &temp_path]), &[NO_OUTPUT])?;
         Ok(path)
     }
