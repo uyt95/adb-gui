@@ -138,8 +138,9 @@ fn import_bytes(data: &[u8]) -> Result<Option<Database>> {
 type OldProperty = (&'static str, &'static str, Option<&'static str>);
 
 /// The schemas the old app wrote, as (name, [(property, type, target)]).
-/// They never changed during the app's lifetime. `Socket.hashCode` is a Dart
-/// getter that Isar stored by accident.
+/// `Socket.hashCode` is a Dart getter that Isar stored by accident. Fields
+/// removed during development stay in the file as nameless slots, and fields
+/// added later come last, so only the named fields are compared, in any order.
 const OLD_APP_SCHEMAS: &[(&str, &[OldProperty])] = &[
     (
         "Argument",
@@ -212,14 +213,14 @@ fn is_old_app(schemas: &HashMap<String, Schema>) -> bool {
     schemas.len() == OLD_APP_SCHEMAS.len()
         && OLD_APP_SCHEMAS.iter().all(|(name, expected)| {
             schemas.get(*name).is_some_and(|schema| {
-                schema.properties.len() == expected.len()
-                    && schema.properties.iter().zip(expected.iter()).all(
-                        |(property, (name, kind, target))| {
-                            property.name == *name
-                                && property.kind == *kind
-                                && property.target.as_deref() == *target
-                        },
-                    )
+                let mut named: Vec<(&str, &str, Option<&str>)> = Vec::new();
+                for property in &schema.properties {
+                    if let Some(name) = &property.name {
+                        named.push((name, &property.kind, property.target.as_deref()));
+                    }
+                }
+                named.sort_unstable();
+                named == *expected
             })
         })
 }
@@ -265,7 +266,9 @@ struct Schema {
 
 #[derive(Deserialize)]
 struct Property {
-    name: String,
+    /// `None` for a field that was removed from the Dart class: Isar keeps
+    /// its slot so that objects written earlier still decode.
+    name: Option<String>,
     #[serde(rename = "type")]
     kind: String,
     target: Option<String>,
@@ -323,8 +326,9 @@ impl Isar<'_> {
             if offset + size > static_size {
                 break;
             }
-            let value = self.property(data, offset, property)?;
-            object.insert(property.name.clone(), value);
+            if let Some(name) = &property.name {
+                object.insert(name.clone(), self.property(data, offset, property)?);
+            }
             offset += size;
         }
         Ok(object)
@@ -336,7 +340,10 @@ impl Isar<'_> {
                 .target
                 .as_ref()
                 .and_then(|target| self.schemas.get(target))
-                .ok_or_else(|| format!("Unknown Isar schema for {}", property.name))
+                .ok_or_else(|| {
+                    let name = property.name.as_deref().unwrap_or_default();
+                    format!("Unknown Isar schema for {name}")
+                })
         };
         Ok(match property.kind.as_str() {
             "Bool" => match bytes::<1>(data, offset)?[0] {
@@ -669,6 +676,75 @@ mod tests {
         // Missing files are fine.
         remove(&dir.join("default.isar"));
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// The schemas of a real database of the old app, where `Socket` lost
+    /// five fields during development and got `hashCode` added afterwards.
+    const EVOLVED_SCHEMAS: &[&str] = &[
+        r#"{"name":"EmulatorParams","embedded":true,"properties":[{"name":"noSnapshotLoad","type":"Bool","target":null},{"name":"writeableSystem","type":"Bool","target":null}],"indexes":[],"links":[],"version":2}"#,
+        r#"{"name":"Emulator","embedded":false,"properties":[{"name":"name","type":"String","target":null},{"name":"params","type":"Object","target":"EmulatorParams"}],"indexes":[],"links":[],"version":2}"#,
+        r#"{"name":"Socket","embedded":true,"properties":[{"name":"name","type":"String","target":null},{"name":"type","type":"String","target":null},{"name":null,"type":"Long","target":null},{"name":null,"type":"Long","target":null},{"name":null,"type":"Long","target":null},{"name":null,"type":"Long","target":null},{"name":null,"type":"Long","target":null},{"name":"hashCode","type":"Long","target":null}],"indexes":[],"links":[],"version":2}"#,
+        r#"{"name":"Proxy","embedded":false,"properties":[{"name":"from","type":"Object","target":"Socket"},{"name":"to","type":"Object","target":"Socket"},{"name":"type","type":"String","target":null}],"indexes":[],"links":[],"version":2}"#,
+        r#"{"name":"Argument","embedded":true,"properties":[{"name":"inputType","type":"String","target":null},{"name":"type","type":"String","target":null},{"name":"value","type":"String","target":null}],"indexes":[],"links":[],"version":2}"#,
+        r#"{"name":"Operation","embedded":true,"properties":[{"name":"arguments","type":"ObjectList","target":"Argument"},{"name":"type","type":"String","target":null}],"indexes":[],"links":[],"version":2}"#,
+        r#"{"name":"Command","embedded":true,"properties":[{"name":"operation","type":"Object","target":"Operation"},{"name":"type","type":"String","target":null}],"indexes":[],"links":[],"version":2}"#,
+        r#"{"name":"Automation","embedded":false,"properties":[{"name":"commands","type":"ObjectList","target":"Command"},{"name":"name","type":"String","target":null}],"indexes":[],"links":[],"version":2}"#,
+        r#"{"name":"Setting","embedded":false,"properties":[{"name":"value","type":"String","target":null}],"indexes":[],"links":[],"version":2}"#,
+        r#"{"name":"Connection","embedded":false,"properties":[{"name":"address","type":"String","target":null},{"name":"name","type":"String","target":null}],"indexes":[],"links":[],"version":2}"#,
+    ];
+
+    fn evolved_schemas() -> HashMap<String, Schema> {
+        EVOLVED_SCHEMAS
+            .iter()
+            .map(|json| serde_json::from_str::<Schema>(json).unwrap())
+            .map(|schema| (schema.name.clone(), schema))
+            .collect()
+    }
+
+    /// A Socket object for the evolved schema; `with_hash_code` false gives
+    /// one written before `hashCode` was added.
+    fn evolved_socket(with_hash_code: bool) -> Vec<u8> {
+        let static_size: u16 = 2 + 3 + 3 + 5 * 8 + if with_hash_code { 8 } else { 0 };
+        let mut data = static_size.to_le_bytes().to_vec();
+        let name_offset = usize::from(static_size);
+        let type_offset = name_offset + 3 + 4;
+        data.extend_from_slice(&(name_offset as u32).to_le_bytes()[..3]);
+        data.extend_from_slice(&(type_offset as u32).to_le_bytes()[..3]);
+        data.extend_from_slice(&[0xAB; 5 * 8]);
+        if with_hash_code {
+            data.extend_from_slice(&42i64.to_le_bytes());
+        }
+        data.extend_from_slice(&[4, 0, 0]);
+        data.extend_from_slice(b"8080");
+        data.extend_from_slice(&[3, 0, 0]);
+        data.extend_from_slice(b"tcp");
+        data
+    }
+
+    #[test]
+    fn accepts_old_app_schemas_with_removed_and_added_fields() {
+        assert!(is_old_app(&evolved_schemas()));
+        let mut changed = evolved_schemas();
+        changed.get_mut("Socket").unwrap().properties[0].kind = "Long".into();
+        assert!(!is_old_app(&changed));
+    }
+
+    #[test]
+    fn decodes_objects_with_removed_fields() {
+        let isar = Isar {
+            mdbx: Mdbx::open(SAMPLE).unwrap(),
+            schemas: evolved_schemas(),
+        };
+        let schema = &isar.schemas["Socket"];
+        for with_hash_code in [true, false] {
+            let socket = isar
+                .object(&evolved_socket(with_hash_code), schema)
+                .unwrap();
+            assert_eq!(socket["name"], "8080");
+            assert_eq!(socket["type"], "tcp");
+            assert_eq!(socket.get("hashCode").is_some(), with_hash_code);
+            assert_eq!(socket.len(), 2 + usize::from(with_hash_code));
+        }
     }
 
     #[test]
