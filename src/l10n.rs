@@ -105,6 +105,10 @@ pub fn button_move_up() -> &'static str {
     pick("Move up", "Verplaats naar boven")
 }
 
+pub fn button_open() -> &'static str {
+    pick("Open", "Openen")
+}
+
 pub fn button_refresh() -> &'static str {
     pick("Refresh", "Verversen")
 }
@@ -115,6 +119,10 @@ pub fn button_run() -> &'static str {
 
 pub fn button_save() -> &'static str {
     pick("Save", "Opslaan")
+}
+
+pub fn button_save_link() -> &'static str {
+    pick("Save link", "Link opslaan")
 }
 
 pub fn button_select() -> &'static str {
@@ -169,6 +177,18 @@ pub fn dialog_title_emulator_params_edit() -> &'static str {
     pick("Edit emulator parameters", "Emulator parameters bewerken")
 }
 
+pub fn dialog_title_deep_link_add() -> &'static str {
+    pick("Add link", "Link toevoegen")
+}
+
+pub fn dialog_title_deep_link_delete() -> &'static str {
+    pick("Delete link", "Link verwijderen")
+}
+
+pub fn dialog_title_deep_link_edit() -> &'static str {
+    pick("Edit link", "Link bewerken")
+}
+
 pub fn dialog_title_proxy_add() -> &'static str {
     pick("Add proxy", "Proxy toevoegen")
 }
@@ -185,12 +205,27 @@ pub fn error_missing_address() -> &'static str {
     pick("Address is a required field", "Adres is een verplicht veld")
 }
 
+pub fn error_missing_link() -> &'static str {
+    pick("Link is a required field", "Link is een verplicht veld")
+}
+
 pub fn error_missing_name() -> &'static str {
     pick("Name is a required field", "Naam is een verplicht veld")
 }
 
 pub fn field_address() -> &'static str {
     pick("Address", "Adres")
+}
+
+pub fn field_app_package() -> &'static str {
+    pick("App package (optional)", "App-pakket (optioneel)")
+}
+
+pub fn field_app_package_hint() -> &'static str {
+    pick(
+        "Leave the package empty to let Android pick the app that handles the link",
+        "Laat het pakket leeg om Android de app te laten kiezen die de link afhandelt",
+    )
 }
 
 pub fn field_command() -> &'static str {
@@ -207,6 +242,10 @@ pub fn field_from() -> &'static str {
 
 pub fn field_keyboard_input() -> &'static str {
     pick("Keyboard input", "Toetsenbord invoer")
+}
+
+pub fn field_link() -> &'static str {
+    pick("Link", "Link")
 }
 
 pub fn field_mode() -> &'static str {
@@ -268,6 +307,10 @@ pub fn page_title_connections() -> &'static str {
     pick("Connections", "Connecties")
 }
 
+pub fn page_title_deep_links() -> &'static str {
+    pick("Deep links", "Deeplinks")
+}
+
 pub fn page_title_emulators() -> &'static str {
     pick("Emulators", "Emulators")
 }
@@ -316,6 +359,32 @@ pub fn empty_connections_description() -> &'static str {
         "Add a connection with the + button to connect to a device over the network",
         "Voeg een connectie toe met de + knop om via het netwerk met een toestel te verbinden",
     )
+}
+
+pub fn empty_deep_links_title() -> &'static str {
+    pick("No saved links", "Geen opgeslagen links")
+}
+
+pub fn empty_deep_links_description() -> &'static str {
+    pick(
+        "Save the link above with the bookmark button, or add one with the + button",
+        "Sla de link hierboven op met de bladwijzerknop, of voeg er een toe met de + knop",
+    )
+}
+
+pub fn group_open_link_title() -> &'static str {
+    pick("Open a link", "Link openen")
+}
+
+pub fn group_open_link_description() -> &'static str {
+    pick(
+        "Opens the link on the selected device, as if you tapped it there",
+        "Opent de link op het geselecteerde toestel, alsof je erop tikt",
+    )
+}
+
+pub fn group_saved_links_title() -> &'static str {
+    pick("Saved links", "Opgeslagen links")
 }
 
 pub fn empty_emulators_title() -> &'static str {

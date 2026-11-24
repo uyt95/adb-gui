@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use crate::models::{Automation, Connection, Emulator, Proxy, Settings};
+use crate::models::{Automation, Connection, DeepLink, Emulator, Proxy, Settings};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -16,6 +16,7 @@ pub struct Database {
     next_id: u64,
     pub automations: Vec<Automation>,
     pub connections: Vec<Connection>,
+    pub deep_links: Vec<DeepLink>,
     pub emulators: Vec<Emulator>,
     pub proxies: Vec<Proxy>,
     pub settings: Settings,
@@ -35,7 +36,7 @@ macro_rules! record {
         }
     )*};
 }
-record!(Automation, Connection, Emulator, Proxy);
+record!(Automation, Connection, DeepLink, Emulator, Proxy);
 
 impl Database {
     /// Inserts the record when its id is 0, otherwise replaces the record with that id.
@@ -62,6 +63,11 @@ impl Database {
         self.connections.sort_by_key(|c| c.name.to_lowercase());
     }
 
+    pub fn put_deep_link(&mut self, item: DeepLink) {
+        Self::put(&mut self.next_id, &mut self.deep_links, item);
+        self.deep_links.sort_by_key(|d| d.name.to_lowercase());
+    }
+
     pub fn put_emulator(&mut self, item: Emulator) {
         Self::put(&mut self.next_id, &mut self.emulators, item);
         self.emulators.sort_by_key(|e| e.name.to_lowercase());
@@ -78,6 +84,7 @@ impl Database {
     pub fn repair_next_id(&mut self) {
         let highest = (self.automations.iter().map(Record::id))
             .chain(self.connections.iter().map(Record::id))
+            .chain(self.deep_links.iter().map(Record::id))
             .chain(self.emulators.iter().map(Record::id))
             .chain(self.proxies.iter().map(Record::id))
             .max()
@@ -91,6 +98,7 @@ impl Database {
         }
         assign_missing(&mut self.next_id, &mut self.automations);
         assign_missing(&mut self.next_id, &mut self.connections);
+        assign_missing(&mut self.next_id, &mut self.deep_links);
         assign_missing(&mut self.next_id, &mut self.emulators);
         assign_missing(&mut self.next_id, &mut self.proxies);
     }

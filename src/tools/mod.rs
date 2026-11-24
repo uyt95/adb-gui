@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::models::{
-    Automation, CommandType, Device, EmulatorParams, InstallMode, Proxy, ProxyType,
+    Automation, CommandType, DeepLink, Device, EmulatorParams, InstallMode, Proxy, ProxyType,
 };
 
 use parse::{parse_avds, parse_devices, parse_proxies, split_lines};
@@ -177,6 +177,16 @@ impl Tools {
         .map(drop)
     }
 
+    /// Opens `link` on the device as if it was tapped there, in the app with
+    /// the given package or, when `package` is empty, in the app Android picks.
+    pub fn open_deep_link(&self, device: &Device, link: &DeepLink) -> Result<()> {
+        let output = self.adb(Some(device), open_deep_link_arguments(link), &[])?;
+        match am_error(&output) {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
+    }
+
     pub fn activate_proxy(&self, device: &Device, proxy: &Proxy) -> Result<()> {
         self.adb(
             Some(device),
@@ -273,6 +283,34 @@ impl Tools {
     }
 }
 
+/// The adb arguments that open a deep link. The link and package are quoted
+/// for the device shell, so `&` or `?` in a link reach `am` unchanged.
+fn open_deep_link_arguments(link: &DeepLink) -> Vec<String> {
+    let mut arguments = strings(&["shell", "am", "start", "-a", "android.intent.action.VIEW"]);
+    arguments.extend(["-d".to_string(), shell_quote(link.link.trim())]);
+    let package = link.package.trim();
+    if !package.is_empty() {
+        arguments.extend(["-p".to_string(), shell_quote(package)]);
+    }
+    arguments
+}
+
+/// The failure that `am start` reported, from its first error line on and
+/// without a leading `Error:`. `am start` exits 0 when no app handles the
+/// intent, printing `Error: Activity not started, ...` after the
+/// `Starting: Intent ...` line instead.
+fn am_error(output: &str) -> Option<String> {
+    let lines: Vec<&str> = output.lines().collect();
+    let first = lines.iter().position(|line| {
+        let line = line.trim_start();
+        line.starts_with("Error") || line.starts_with("Exception occurred")
+    })?;
+    let error = lines[first..].join("\n");
+    // The toast already says "Error:".
+    let error = error.trim().strip_prefix("Error:").unwrap_or(error.trim());
+    Some(error.trim_start().to_string())
+}
+
 /// Whether a line of the output is an adb error, e.g. from a pull that exits 0.
 fn has_adb_error(output: &str) -> bool {
     output
@@ -283,7 +321,66 @@ fn has_adb_error(output: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::process::validate;
-    use super::{NO_OUTPUT, PROXY_ACTIVATED, has_adb_error};
+    use super::{NO_OUTPUT, PROXY_ACTIVATED, am_error, has_adb_error, open_deep_link_arguments};
+    use crate::models::DeepLink;
+
+    #[test]
+    fn deep_link_arguments_quote_link_and_add_package_only_when_set() {
+        let mut link = DeepLink {
+            link: " https://example.com/a?b=1&c='x' ".into(),
+            ..DeepLink::default()
+        };
+        assert_eq!(
+            open_deep_link_arguments(&link),
+            [
+                "shell",
+                "am",
+                "start",
+                "-a",
+                "android.intent.action.VIEW",
+                "-d",
+                r"'https://example.com/a?b=1&c='\''x'\'''",
+            ]
+        );
+        link.package = "com.example.app".into();
+        let arguments = open_deep_link_arguments(&link);
+        assert_eq!(
+            arguments[arguments.len() - 2..],
+            ["-p", "'com.example.app'"]
+        );
+    }
+
+    #[test]
+    fn am_errors_are_reported_from_the_first_error_line() {
+        assert_eq!(
+            am_error("Starting: Intent { act=android.intent.action.VIEW dat=myapp://home/... }\n"),
+            None
+        );
+        assert_eq!(
+            am_error(
+                "Starting: Intent { act=android.intent.action.VIEW dat=myapp:// }\nWarning: Activity not started, intent has been delivered to currently running top-most instance.\n"
+            ),
+            None
+        );
+        assert_eq!(
+            am_error(
+                "Starting: Intent { act=android.intent.action.VIEW dat=nope:// }\nError: Activity not started, unable to resolve Intent { act=android.intent.action.VIEW dat=nope:// flg=0x10000000 }\n"
+            )
+            .as_deref(),
+            Some(
+                "Activity not started, unable to resolve Intent { act=android.intent.action.VIEW dat=nope:// flg=0x10000000 }"
+            )
+        );
+        assert_eq!(
+            am_error(
+                "Starting: Intent { }\nException occurred while executing 'start':\njava.lang.SecurityException: Permission Denial\n"
+            )
+            .as_deref(),
+            Some(
+                "Exception occurred while executing 'start':\njava.lang.SecurityException: Permission Denial"
+            )
+        );
+    }
 
     #[test]
     fn no_output_rejects_errors_with_blank_lines() {

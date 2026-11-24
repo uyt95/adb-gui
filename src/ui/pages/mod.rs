@@ -3,6 +3,7 @@
 
 mod automations;
 mod connections;
+mod deep_links;
 mod emulators;
 mod install;
 mod keyboard;
@@ -40,6 +41,7 @@ pub fn all(state: &Rc<AppState>) -> Vec<Page> {
         automations::page(state),
         proxies::page(state),
         screenshot::page(state),
+        deep_links::page(state),
         settings::page(state),
     ]
 }

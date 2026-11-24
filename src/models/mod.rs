@@ -2,6 +2,7 @@
 
 mod automation;
 mod connection;
+mod deep_link;
 mod device;
 mod emulator;
 mod install;
@@ -11,6 +12,7 @@ mod settings;
 
 pub use automation::*;
 pub use connection::*;
+pub use deep_link::*;
 pub use device::*;
 pub use emulator::*;
 pub use install::*;
