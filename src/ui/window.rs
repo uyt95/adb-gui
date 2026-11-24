@@ -112,6 +112,8 @@ pub fn build(app: &adw::Application, state: &Rc<AppState>) -> adw::ApplicationWi
                 console_panel.set_visible(true);
                 paned.set_position(paned.height() - height);
             } else {
+                // Failures shown while the console was open count as seen.
+                seen_failures.set(log.failed_total());
                 save_console_height(&state, &paned, &console_panel);
                 console_panel.set_visible(false);
             }
