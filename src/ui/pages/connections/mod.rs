@@ -1,4 +1,5 @@
 mod add_dialog;
+mod connection_form;
 mod edit_dialog;
 
 use std::rc::Rc;
