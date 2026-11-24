@@ -334,7 +334,7 @@ fn summary(record: &Record) -> gtk::Box {
                 });
             (
                 format!("{} · {exit}", format_duration(finished.duration)),
-                finished.exit_code != Some(0),
+                finished.rejected || finished.exit_code != Some(0),
             )
         }
     };
