@@ -396,16 +396,26 @@ impl AddDialog {
         self.state.run(
             move |tools| tools.pair_and_connect(&address, &code),
             move |state, result| {
-                let Some(this) = weak.upgrade() else { return };
-                this.pairing.set(false);
-                this.confirm.set_sensitive(true);
+                // The dialog may have been closed while pairing ran. The
+                // device is paired in adb either way, so save it first and
+                // only touch the dialog if it still exists.
+                let this = weak.upgrade();
                 match result {
                     Ok(paired) => {
                         save_paired(state, paired);
                         state.load_devices();
-                        this.dialog.close();
+                        if let Some(this) = this {
+                            this.pairing.set(false);
+                            this.dialog.close();
+                        }
                     }
                     Err(error) => {
+                        let Some(this) = this else {
+                            state.show_error(&l10n::error_message(&error));
+                            return;
+                        };
+                        this.pairing.set(false);
+                        this.confirm.set_sensitive(true);
                         let status = if from_qr {
                             &this.qr_status
                         } else {
