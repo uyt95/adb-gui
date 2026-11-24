@@ -108,11 +108,16 @@ pub fn console(log: &CommandLog, on_hide: impl Fn() + 'static) -> gtk::Box {
         let failed_only = failed_only.clone();
         move |row| !failed_only.get() || row.has_css_class(FAILED_CLASS)
     });
+    // Set when the user opens or closes a row; that growth must not scroll away
+    // from the row. Any other change to the list clears it.
+    let user_expanded = Rc::new(Cell::new(false));
     show_failed.connect_toggled({
         let list = list.clone();
         let failed_only = failed_only.clone();
+        let user_expanded = user_expanded.clone();
         move |button| {
             failed_only.set(button.is_active());
+            user_expanded.set(false);
             placeholder.set_label(if button.is_active() {
                 l10n::console_no_failed()
             } else {
@@ -167,20 +172,18 @@ pub fn console(log: &CommandLog, on_hide: impl Fn() + 'static) -> gtk::Box {
             jump.set_visible(!following.get());
         }
     });
-    // Set when rows were added; growth without new rows comes from an expanded row.
-    let rows_added = Rc::new(Cell::new(false));
-    let last_page_size = Cell::new(0.0);
     adjustment.connect_changed({
         let following = following.clone();
-        let rows_added = rows_added.clone();
+        let user_expanded = user_expanded.clone();
         let jump = jump.clone();
         move |adjustment| {
-            let resized = adjustment.page_size() != last_page_size.replace(adjustment.page_size());
-            let added = rows_added.replace(false);
+            let by_user = user_expanded.replace(false);
             if !following.get() {
                 return;
             }
-            if added || resized {
+            if !by_user {
+                // New rows, a finished command, a filter switch or a resize:
+                // keep the newest command in view.
                 // This runs while the list is being laid out, when a new scroll
                 // position would not be drawn; scroll once that is done.
                 let adjustment = adjustment.downgrade();
@@ -190,7 +193,7 @@ pub fn console(log: &CommandLog, on_hide: impl Fn() + 'static) -> gtk::Box {
                     }
                 });
             } else if adjustment.value() < adjustment.upper() - adjustment.page_size() - 2.0 {
-                // A row was expanded: keep it in view rather than jumping away.
+                // The user expanded a row: keep it in view rather than jumping away.
                 following.set(false);
                 jump.set_visible(true);
             }
@@ -228,7 +231,8 @@ pub fn console(log: &CommandLog, on_hide: impl Fn() + 'static) -> gtk::Box {
                             .child()
                             .and_downcast::<gtk::Expander>()
                             .is_some_and(|e| e.is_expanded());
-                        fill_row(&row.row, record, expanded);
+                        fill_row(&row.row, record, expanded, &user_expanded);
+                        user_expanded.set(false);
                         row.revision = record.revision;
                     }
                     None => {
@@ -236,9 +240,9 @@ pub fn console(log: &CommandLog, on_hide: impl Fn() + 'static) -> gtk::Box {
                             .activatable(false)
                             .css_classes(["console-row"])
                             .build();
-                        fill_row(&row, record, false);
+                        fill_row(&row, record, false, &user_expanded);
                         list.append(&row);
-                        rows_added.set(true);
+                        user_expanded.set(false);
                         rows.insert(
                             record.id,
                             Row {
@@ -260,7 +264,12 @@ pub fn console(log: &CommandLog, on_hide: impl Fn() + 'static) -> gtk::Box {
 }
 
 /// Shows `record` in `row`, keeping the row's place in the list.
-fn fill_row(row: &gtk::ListBoxRow, record: &Record, expanded: bool) {
+fn fill_row(
+    row: &gtk::ListBoxRow,
+    record: &Record,
+    expanded: bool,
+    user_expanded: &Rc<Cell<bool>>,
+) {
     if record.is_failed() {
         row.add_css_class(FAILED_CLASS);
     } else {
@@ -275,6 +284,10 @@ fn fill_row(row: &gtk::ListBoxRow, record: &Record, expanded: bool) {
         .margin_top(4)
         .margin_bottom(4)
         .build();
+    expander.connect_expanded_notify({
+        let user_expanded = user_expanded.clone();
+        move |_| user_expanded.set(true)
+    });
     row.set_child(Some(&expander));
 }
 
