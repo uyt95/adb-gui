@@ -65,6 +65,10 @@ pub fn button_capture() -> &'static str {
     pick("Capture", "Vastleggen")
 }
 
+pub fn button_pair() -> &'static str {
+    pick("Pair", "Koppelen")
+}
+
 pub fn button_connect() -> &'static str {
     pick("Connect", "Verbinden")
 }
@@ -185,12 +189,41 @@ pub fn error_missing_address() -> &'static str {
     pick("Address is a required field", "Adres is een verplicht veld")
 }
 
+pub fn error_missing_pairing_code() -> &'static str {
+    pick(
+        "Pairing code is a required field",
+        "Koppelcode is een verplicht veld",
+    )
+}
+
+pub fn error_device_not_found() -> &'static str {
+    pick(
+        "The device was not found on the network. Turn on wireless debugging on the device",
+        "Het toestel is niet gevonden op het netwerk. Zet draadloze foutopsporing aan op het toestel",
+    )
+}
+
+pub fn error_paired_not_connected(name: &str, error: &str) -> String {
+    match lang() {
+        Lang::En => format!("Paired with {name}, but connecting failed: {error}"),
+        Lang::Nl => format!("Gekoppeld met {name}, maar verbinden is mislukt: {error}"),
+    }
+}
+
 pub fn error_missing_name() -> &'static str {
     pick("Name is a required field", "Naam is een verplicht veld")
 }
 
 pub fn field_address() -> &'static str {
     pick("Address", "Adres")
+}
+
+pub fn field_pairing_address() -> &'static str {
+    pick("IP address and port", "IP-adres en poort")
+}
+
+pub fn field_pairing_code() -> &'static str {
+    pick("Pairing code", "Koppelcode")
 }
 
 pub fn field_command() -> &'static str {
@@ -313,8 +346,8 @@ pub fn empty_connections_title() -> &'static str {
 
 pub fn empty_connections_description() -> &'static str {
     pick(
-        "Add a connection with the + button to connect to a device over the network",
-        "Voeg een connectie toe met de + knop om via het netwerk met een toestel te verbinden",
+        "Add a connection with the + button to pair with a device or connect to it over the network",
+        "Voeg een connectie toe met de + knop om met een toestel te koppelen of er via het netwerk mee te verbinden",
     )
 }
 
@@ -338,6 +371,61 @@ pub fn empty_proxies_description() -> &'static str {
         "Add a proxy with the + button to forward a port to or from the device",
         "Voeg een proxy toe met de + knop om een poort van of naar het toestel door te sturen",
     )
+}
+
+pub fn pair_tab_code() -> &'static str {
+    pick("Pairing code", "Koppelcode")
+}
+
+pub fn pair_tab_qr() -> &'static str {
+    pick("QR code", "QR-code")
+}
+
+pub fn pair_tab_address() -> &'static str {
+    pick("Address", "Adres")
+}
+
+pub fn pair_code_help() -> &'static str {
+    pick(
+        "Android 11 and newer. On the device, open Developer options › Wireless debugging › Pair device with pairing code.",
+        "Android 11 en nieuwer. Open op het toestel Ontwikkelaarsopties › Draadloze foutopsporing › Apparaat koppelen met koppelingscode.",
+    )
+}
+
+pub fn pair_code_found() -> &'static str {
+    pick("Found on the network", "Gevonden op het netwerk")
+}
+
+pub fn pair_qr_help() -> &'static str {
+    pick(
+        "Android 11 and newer, on a phone or tablet. On the device, open Developer options › Wireless debugging › Pair device with QR code, and scan this code.",
+        "Android 11 en nieuwer, op een telefoon of tablet. Open op het toestel Ontwikkelaarsopties › Draadloze foutopsporing › Apparaat koppelen met QR-code, en scan deze code.",
+    )
+}
+
+pub fn pair_qr_waiting() -> &'static str {
+    pick(
+        "Waiting for the device to scan the code…",
+        "Wachten tot het toestel de code scant…",
+    )
+}
+
+pub fn pair_in_progress() -> &'static str {
+    pick("Pairing…", "Koppelen…")
+}
+
+pub fn pair_address_help() -> &'static str {
+    pick(
+        "For devices with classic network debugging, for example after adb tcpip 5555. Without a port, 5555 is used.",
+        "Voor toestellen met klassieke netwerk-foutopsporing, bijvoorbeeld na adb tcpip 5555. Zonder poort wordt 5555 gebruikt.",
+    )
+}
+
+pub fn paired_with(name: &str) -> String {
+    match lang() {
+        Lang::En => format!("Paired with {name}"),
+        Lang::Nl => format!("Gekoppeld met {name}"),
+    }
 }
 
 pub fn value_active() -> &'static str {

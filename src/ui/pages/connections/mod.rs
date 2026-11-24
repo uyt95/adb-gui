@@ -1,3 +1,4 @@
+mod add_dialog;
 mod edit_dialog;
 
 use std::rc::Rc;
@@ -6,10 +7,11 @@ use adw::prelude::*;
 
 use super::{Callback, Page};
 use crate::l10n;
-use crate::models::Connection;
+use crate::models::{Connection, Device};
 use crate::state::AppState;
 use crate::ui::widgets;
 
+use add_dialog::add_dialog;
 use edit_dialog::edit_dialog;
 
 pub fn page(state: &Rc<AppState>) -> Page {
@@ -28,20 +30,21 @@ pub fn page(state: &Rc<AppState>) -> Page {
                 .connections
                 .iter()
                 .map(|connection| {
-                    let connected = devices
+                    let device = devices
                         .iter()
-                        .any(|d| d.matches_address(&connection.address));
-                    (connection.clone(), connected)
+                        .find(|d| d.matches_connection(connection))
+                        .cloned();
+                    (connection.clone(), device)
                 })
                 .collect()
         },
-        |state, list, (connection, connected)| row(state, list, connection, connected),
+        |state, list, (connection, device)| row(state, list, connection, device),
     );
 
     let on_add: Callback = {
         let state = state.clone();
         let parent = widget.clone();
-        Rc::new(move || edit_dialog(&state, &parent, None))
+        Rc::new(move || add_dialog(&state, &parent))
     };
     let on_show: Callback = {
         let state = state.clone();
@@ -62,9 +65,15 @@ fn row(
     state: &Rc<AppState>,
     list: &gtk::ListBox,
     connection: Connection,
-    connected: bool,
+    device: Option<Device>,
 ) -> adw::ActionRow {
-    let row = widgets::action_row(&connection.name, Some(&connection.address));
+    let subtitle = if connection.address.is_empty() {
+        &connection.mdns_name
+    } else {
+        &connection.address
+    };
+    let row = widgets::action_row(&connection.name, Some(subtitle));
+    let connected = device.is_some();
     row.add_suffix(&widgets::status_label(
         if connected {
             l10n::value_connected()
@@ -78,7 +87,7 @@ fn row(
         let state = state.clone();
         let list = list.clone();
         let connection = connection.clone();
-        move || edit_dialog(&state, &list, Some(connection.clone()))
+        move || edit_dialog(&state, &list, connection.clone())
     }));
 
     let (icon, tooltip) = if connected {
@@ -88,19 +97,41 @@ fn row(
     };
     row.add_suffix(&widgets::icon_button(icon, tooltip, {
         let state = state.clone();
-        let address = connection.address.clone();
-        move || {
-            let address = address.clone();
-            state.run_action(
-                move |tools| {
-                    if connected {
-                        tools.disconnect(&address)
-                    } else {
-                        tools.connect(&address)
-                    }
-                },
-                |state| state.load_devices(),
-            );
+        let connection = connection.clone();
+        move || match &device {
+            // Disconnect by the serial adb lists, which is the mDNS name when
+            // adb connected the device by itself.
+            Some(device) => {
+                let serial = device.serial.clone();
+                state.run_action(
+                    move |tools| tools.disconnect(&serial),
+                    |state| state.load_devices(),
+                );
+            }
+            None => {
+                let connection = connection.clone();
+                state.run(
+                    move |tools| tools.connect_saved(&connection),
+                    |state, result| {
+                        match result {
+                            // Remember the new port for the next time.
+                            Ok(reached) => {
+                                if state
+                                    .db
+                                    .borrow()
+                                    .connections
+                                    .iter()
+                                    .any(|c| c.id == reached.id && *c != reached)
+                                {
+                                    state.update_db(|db| db.put_connection(reached));
+                                }
+                            }
+                            Err(error) => state.show_error(&error),
+                        }
+                        state.load_devices();
+                    },
+                );
+            }
         }
     }));
 

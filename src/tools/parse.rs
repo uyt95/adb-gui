@@ -1,5 +1,6 @@
 //! Parsing adb output.
 
+use super::{MdnsService, MdnsServiceType};
 use crate::models::{Device, Proxy, ProxyType, Socket};
 
 /// Output lines without the `* daemon ...` notices adb prints when it starts.
@@ -66,6 +67,41 @@ pub fn parse_proxies(proxy_type: ProxyType, lines: &[String]) -> Vec<(String, Pr
         .collect()
 }
 
+/// Parses `adb mdns services` lines: `<instance>\t<service type>\t<ip>:<port>`.
+/// The header line and unknown service types are skipped.
+pub fn parse_mdns_services(lines: &[String]) -> Vec<MdnsService> {
+    lines
+        .iter()
+        .filter_map(|line| {
+            let tokens: Vec<&str> = line.split_whitespace().collect();
+            let [instance, service_type, address] = tokens[..] else {
+                return None;
+            };
+            let service_type = if service_type.starts_with("_adb-tls-connect.") {
+                MdnsServiceType::Connect
+            } else if service_type.starts_with("_adb-tls-pairing.") {
+                MdnsServiceType::Pairing
+            } else {
+                return None;
+            };
+            address.contains(':').then(|| MdnsService {
+                instance: instance.to_string(),
+                service_type,
+                address: address.to_string(),
+            })
+        })
+        .collect()
+}
+
+/// The device's mDNS name from `adb pair` output such as
+/// `Successfully paired to 192.168.1.5:37000 [guid=adb-1A2B-x7Yz9Q]`.
+pub fn parse_paired_guid(output: &str) -> Option<String> {
+    let start = output.find("[guid=")? + "[guid=".len();
+    let rest = &output[start..];
+    let guid = &rest[..rest.find(']')?];
+    (!guid.is_empty()).then(|| guid.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -91,6 +127,44 @@ mod tests {
                     state: "offline".into(),
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn parses_mdns_services() {
+        let output = "List of discovered mdns services\nadb-1A2B-x7Yz9Q\t_adb-tls-connect._tcp\t192.168.1.5:41235\nstudio-abc\t_adb-tls-pairing._tcp.\t192.168.1.6:37099\nadb-1A2B\t_adb._tcp\t192.168.1.5:5555\n\n";
+        let services = parse_mdns_services(&lines(output));
+        assert_eq!(
+            services,
+            vec![
+                MdnsService {
+                    instance: "adb-1A2B-x7Yz9Q".into(),
+                    service_type: MdnsServiceType::Connect,
+                    address: "192.168.1.5:41235".into(),
+                },
+                MdnsService {
+                    instance: "studio-abc".into(),
+                    service_type: MdnsServiceType::Pairing,
+                    address: "192.168.1.6:37099".into(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn parses_the_guid_of_a_pairing() {
+        assert_eq!(
+            parse_paired_guid("Successfully paired to 192.168.1.5:37000 [guid=adb-1A2B-x7Yz9Q]\n")
+                .as_deref(),
+            Some("adb-1A2B-x7Yz9Q")
+        );
+        assert_eq!(
+            parse_paired_guid("Successfully paired to 192.168.1.5:37000"),
+            None
+        );
+        assert_eq!(
+            parse_paired_guid("Failed: Wrong password or connection was dropped."),
+            None
         );
     }
 

@@ -3,7 +3,8 @@
 A user interface on top of the adb (Android Debug Bridge), written in Rust with GTK 4 and libadwaita.
 
 ## Features
-* Save and manage remote connections
+* Save and manage remote connections, and pair devices for wireless debugging (Android 11+) with a
+  pairing code or a QR code
 * Start emulators
 * Send keyboard input (Ctrl+Enter sends the text, Ctrl+Backspace and Ctrl+Tab send those keys)
 * (Android TV) remote control
@@ -37,6 +38,18 @@ cargo run              # debug build
 cargo build --release  # binary at target/release/adb-gui
 cargo test             # unit tests (no device needed)
 ```
+
+## Wireless debugging (Android 11+)
+Newer devices, such as Google TV, need to be paired once before adb can connect, and they pick a new
+port each time wireless debugging starts (after a reboot, a Wi-Fi drop or turning it off and on).
+Pair a device from the + button on the Connections page, with the pairing code the device shows or,
+on a phone or tablet, by scanning a QR code. The connection remembers the device by its mDNS name, so
+Connect finds its current port by itself.
+
+This relies on adb's mDNS discovery (`adb mdns check`). The computer and the device must be on the same
+network, and multicast DNS (UDP port 5353) must not be blocked by the router or the firewall.
+Wireless debugging only works over Wi-Fi, not Ethernet. Devices with classic network debugging
+(`adb tcpip 5555`) can still be added by address.
 
 ## Data
 Connections, emulator parameters, proxies, automations and settings are stored in
