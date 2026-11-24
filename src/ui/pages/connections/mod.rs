@@ -1,3 +1,5 @@
+mod add_dialog;
+mod connection_form;
 mod edit_dialog;
 
 use std::rc::Rc;
@@ -6,10 +8,11 @@ use adw::prelude::*;
 
 use super::{Callback, Page};
 use crate::l10n;
-use crate::models::Connection;
+use crate::models::{Connection, Device};
 use crate::state::AppState;
 use crate::ui::widgets;
 
+use add_dialog::add_dialog;
 use edit_dialog::edit_dialog;
 
 pub fn page(state: &Rc<AppState>) -> Page {
@@ -28,20 +31,21 @@ pub fn page(state: &Rc<AppState>) -> Page {
                 .connections
                 .iter()
                 .map(|connection| {
-                    let connected = devices
+                    let device = devices
                         .iter()
-                        .any(|d| d.matches_address(&connection.address));
-                    (connection.clone(), connected)
+                        .find(|d| d.matches_connection(connection))
+                        .cloned();
+                    (connection.clone(), device)
                 })
                 .collect()
         },
-        |state, list, (connection, connected)| row(state, list, connection, connected),
+        |state, list, (connection, device)| row(state, list, connection, device),
     );
 
     let on_add: Callback = {
         let state = state.clone();
         let parent = widget.clone();
-        Rc::new(move || edit_dialog(&state, &parent, None))
+        Rc::new(move || add_dialog(&state, &parent))
     };
     let on_show: Callback = {
         let state = state.clone();
@@ -62,9 +66,16 @@ fn row(
     state: &Rc<AppState>,
     list: &gtk::ListBox,
     connection: Connection,
-    connected: bool,
+    device: Option<Device>,
 ) -> adw::ActionRow {
-    let row = widgets::action_row(&connection.name, Some(&connection.address));
+    // The address, then the mDNS name of a wireless debugging device.
+    let subtitle = [connection.address.as_str(), connection.mdns_name.as_str()]
+        .into_iter()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ");
+    let row = widgets::action_row(&connection.name, Some(&subtitle));
+    let connected = device.is_some();
     row.add_suffix(&widgets::status_label(
         if connected {
             l10n::value_connected()
@@ -78,7 +89,7 @@ fn row(
         let state = state.clone();
         let list = list.clone();
         let connection = connection.clone();
-        move || edit_dialog(&state, &list, Some(connection.clone()))
+        move || edit_dialog(&state, &list, connection.clone())
     }));
 
     let (icon, tooltip) = if connected {
@@ -88,19 +99,49 @@ fn row(
     };
     row.add_suffix(&widgets::icon_button(icon, tooltip, {
         let state = state.clone();
-        let address = connection.address.clone();
-        move || {
-            let address = address.clone();
-            state.run_action(
-                move |tools| {
-                    if connected {
-                        tools.disconnect(&address)
-                    } else {
-                        tools.connect(&address)
-                    }
-                },
-                |state| state.load_devices(),
-            );
+        let connection = connection.clone();
+        move || match &device {
+            // Disconnect every entry adb lists for the connection: by its
+            // address, and by its mDNS name when adb connected it by itself.
+            Some(_) => {
+                let connection = connection.clone();
+                state.run_action(
+                    move |tools| tools.disconnect_connection(&connection),
+                    |state| state.load_devices(),
+                );
+            }
+            None => {
+                let connection = connection.clone();
+                state.run(
+                    move |tools| tools.connect_saved(&connection),
+                    |state, result| {
+                        match result {
+                            // Remember the new port for the next time. Only
+                            // the address and mDNS name are written back, so
+                            // a rename made while connecting is kept.
+                            Ok(reached) => {
+                                let stored = state
+                                    .db
+                                    .borrow()
+                                    .connections
+                                    .iter()
+                                    .find(|c| c.id == reached.id)
+                                    .cloned();
+                                if let Some(mut stored) = stored
+                                    && (stored.address != reached.address
+                                        || stored.mdns_name != reached.mdns_name)
+                                {
+                                    stored.address = reached.address;
+                                    stored.mdns_name = reached.mdns_name;
+                                    state.update_db(|db| db.put_connection(stored));
+                                }
+                            }
+                            Err(error) => state.show_error(&error),
+                        }
+                        state.load_devices();
+                    },
+                );
+            }
         }
     }));
 

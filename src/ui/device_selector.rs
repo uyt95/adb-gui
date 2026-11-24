@@ -34,7 +34,7 @@ pub fn device_selector(state: &Rc<AppState>) -> gtk::DropDown {
                 .map(|device| {
                     let name = connections
                         .iter()
-                        .find(|c| device.matches_address(&c.address))
+                        .find(|c| device.matches_connection(c))
                         .map(|c| c.name.clone())
                         .unwrap_or_else(|| device.serial.clone());
                     // Show why a device cannot be used, e.g. "Phone (unauthorized)".

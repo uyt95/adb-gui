@@ -81,6 +81,7 @@ fn import_bytes(data: &[u8]) -> Result<Option<Database>> {
             id: 0,
             name: string(&object, "name"),
             address: string(&object, "address"),
+            ..Connection::default()
         });
     }
     for object in isar.collection("Emulator")? {

@@ -207,11 +207,13 @@ mod tests {
             id: 0,
             name: "b".into(),
             address: "1".into(),
+            ..Connection::default()
         });
         db.put_connection(Connection {
             id: 0,
             name: "A".into(),
             address: "2".into(),
+            ..Connection::default()
         });
         assert_eq!(db.connections[0].name, "A");
         let mut edited = db.connections[1].clone();
@@ -238,6 +240,7 @@ mod tests {
             id: 0,
             name: "b".into(),
             address: "2".into(),
+            ..Connection::default()
         });
         assert_eq!(db.connections[1].id, 8);
         fs::remove_dir_all(&dir).unwrap();

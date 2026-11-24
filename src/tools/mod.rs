@@ -3,6 +3,7 @@
 //! Everything here runs on a worker thread; the UI calls it through
 //! [`crate::state::AppState::run`]. Errors are plain messages for display.
 
+mod connection;
 mod log;
 mod parse;
 mod process;
@@ -14,6 +15,7 @@ use crate::models::{
     Automation, CommandType, Device, EmulatorParams, InstallMode, Proxy, ProxyType,
 };
 
+pub use connection::{MdnsService, MdnsServiceType, Paired};
 pub use log::{CommandLog, Record, RecordState, format_duration};
 use parse::{parse_avds, parse_devices, parse_proxies, split_lines};
 pub use process::find_executable;
@@ -70,6 +72,15 @@ fn adb_arguments(device: Option<&Device>, arguments: Vec<String>) -> Vec<String>
 }
 
 impl Tools {
+    /// These tools with a log of their own that nobody shows, for commands
+    /// repeated in the background that would flood the console.
+    pub fn unlogged(self) -> Tools {
+        Tools {
+            log: CommandLog::default(),
+            ..self
+        }
+    }
+
     fn adb(
         &self,
         device: Option<&Device>,
@@ -99,24 +110,6 @@ impl Tools {
     pub fn list_devices(&self) -> Result<Vec<Device>> {
         execute(&self.log, &self.adb, &strings(&["devices"]))
             .map(|output| parse_devices(&split_lines(&output)))
-    }
-
-    pub fn connect(&self, address: &str) -> Result<()> {
-        self.adb(
-            None,
-            strings(&["connect", address]),
-            &["(already )?connected to .*"],
-        )
-        .map(drop)
-    }
-
-    pub fn disconnect(&self, address: &str) -> Result<()> {
-        self.adb(
-            None,
-            strings(&["disconnect", address]),
-            &["disconnected .*", "error: no such device '.*'"],
-        )
-        .map(drop)
     }
 
     /// Available AVD names. Fails when the emulator cannot start or exits with an error.

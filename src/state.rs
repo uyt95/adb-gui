@@ -89,6 +89,15 @@ impl AppState {
         }
     }
 
+    /// Shows a short notice that is not an error.
+    pub fn show_message(&self, message: &str) {
+        if let Some(overlay) = self.toast_overlay.borrow().as_ref() {
+            let toast = adw::Toast::new(&glib::markup_escape_text(message));
+            toast.set_timeout(3);
+            overlay.add_toast(toast);
+        }
+    }
+
     pub fn show_error(&self, message: &str) {
         eprintln!("{message}");
         if let Some(overlay) = self.toast_overlay.borrow().as_ref() {
