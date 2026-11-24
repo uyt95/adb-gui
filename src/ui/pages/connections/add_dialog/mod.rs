@@ -291,6 +291,7 @@ impl AddDialog {
 fn save_paired(state: &AppState, paired: Paired) {
     let Paired {
         mut connection,
+        found,
         connect_error,
     } = paired;
     if !connection.mdns_name.is_empty()
@@ -305,8 +306,10 @@ fn save_paired(state: &AppState, paired: Paired) {
         connection.name = existing.name.clone();
     }
     let name = connection.name.clone();
+    let has_mdns_name = !connection.mdns_name.is_empty();
     state.update_db(|db| db.put_connection(connection));
     match connect_error {
+        None if !found => state.show_message(&l10n::paired_not_found(&name, has_mdns_name)),
         None => state.show_message(&l10n::paired_with(&name)),
         Some(error) => state.show_error(&l10n::error_paired_not_connected(&name, &error)),
     }

@@ -466,6 +466,26 @@ pub fn pair_address_help() -> &'static str {
     )
 }
 
+/// Pairing worked, but the device's connect port was not found, so no
+/// connect was tried. With an mDNS name, Connect finds the port later;
+/// without one, the port has to be entered by hand.
+pub fn paired_not_found(name: &str, has_mdns_name: bool) -> String {
+    match (lang(), has_mdns_name) {
+        (Lang::En, true) => format!(
+            "Paired with {name}. It is not on the network yet: press Connect once it shows up"
+        ),
+        (Lang::Nl, true) => format!(
+            "Gekoppeld met {name}. Het is nog niet gevonden op het netwerk: druk op Verbinden zodra het verschijnt"
+        ),
+        (Lang::En, false) => format!(
+            "Paired with {name}, but its port was not found. Add the port shown under wireless debugging to its address"
+        ),
+        (Lang::Nl, false) => format!(
+            "Gekoppeld met {name}, maar de poort is niet gevonden. Voeg de poort onder draadloze foutopsporing toe aan het adres"
+        ),
+    }
+}
+
 pub fn paired_with(name: &str) -> String {
     match lang() {
         Lang::En => format!("Paired with {name}"),

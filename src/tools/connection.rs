@@ -34,6 +34,10 @@ pub enum MdnsServiceType {
 pub struct Paired {
     /// The new connection, named after the device model when it could be read.
     pub connection: Connection,
+    /// Whether the device's connect service was found after pairing. When
+    /// it was not, no connect was tried: without its port, adb would try
+    /// port 5555, which wireless debugging never uses.
+    pub found: bool,
     /// Why connecting failed after pairing succeeded. The connection is
     /// still worth saving: Connect looks the device up again later.
     pub connect_error: Option<String>,
@@ -117,11 +121,12 @@ impl Tools {
         };
         // The device starts advertising its connect service, with a port of
         // its own, once pairing is done. That can take a moment.
+        let mut found = false;
         for attempt in 0..PAIRED_LOOKUP_ATTEMPTS {
             if attempt > 0 {
                 std::thread::sleep(Duration::from_secs(1));
             }
-            let found = self.mdns_services().into_iter().find(|s| {
+            let service = self.mdns_services().into_iter().find(|s| {
                 s.service_type == MdnsServiceType::Connect
                     && if connection.mdns_name.is_empty() {
                         address_host(&s.address) == host
@@ -129,22 +134,28 @@ impl Tools {
                         s.instance == connection.mdns_name
                     }
             });
-            if let Some(service) = found {
+            if let Some(service) = service {
                 connection.mdns_name = service.instance;
                 connection.address = service.address;
+                found = true;
                 break;
             }
         }
-        // connect_saved looks the port up once more, so keep the address it
-        // reached: it may have found the service the loop above missed.
-        let connect_error = match self.connect_saved(&connection) {
-            Ok(reached) => {
-                connection.address = reached.address;
-                None
+        // Without the connect service there is no port to connect to, so
+        // leave connecting to the Connect button. connect_saved looks the
+        // port up once more, so keep the address it reached.
+        let connect_error = if found {
+            match self.connect_saved(&connection) {
+                Ok(reached) => {
+                    connection.address = reached.address;
+                    None
+                }
+                Err(error) => Some(error),
             }
-            Err(error) => Some(error),
+        } else {
+            None
         };
-        if connect_error.is_none() {
+        if found && connect_error.is_none() {
             // Read the model through the entry adb has for the device, which
             // is the mDNS name when adb connected it by itself.
             let device = self.connected_device(&connection).unwrap_or(Device {
@@ -167,6 +178,7 @@ impl Tools {
         }
         Ok(Paired {
             connection,
+            found,
             connect_error,
         })
     }
