@@ -295,12 +295,20 @@ impl AddDialog {
         } else {
             l10n::button_pair()
         });
+        self.update_confirm();
         if tab == TAB_ADDRESS {
             self.name.grab_focus();
         } else {
             // Look right away instead of after the next interval.
             self.poll();
         }
+    }
+
+    /// While a pairing runs, Pair is greyed out, but Add on the address
+    /// tab still works: adding a connection does not affect the pairing.
+    fn update_confirm(&self) {
+        self.confirm
+            .set_sensitive(self.tab() == TAB_ADDRESS || !self.pairing.get());
     }
 
     fn confirm(self: &Rc<Self>) {
@@ -413,7 +421,7 @@ impl AddDialog {
             &self.code_status
         };
         status.progress(l10n::pair_in_progress());
-        self.confirm.set_sensitive(false);
+        self.update_confirm();
         let weak = Rc::downgrade(self);
         self.state.run(
             move |tools| tools.pair_and_connect(&address, &code),
@@ -437,7 +445,7 @@ impl AddDialog {
                             return;
                         };
                         this.pairing.set(false);
-                        this.confirm.set_sensitive(true);
+                        this.update_confirm();
                         if from_qr {
                             this.renew_qr();
                             this.qr_status.error(&l10n::error_pair_qr_failed(&error));
