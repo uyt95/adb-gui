@@ -440,8 +440,7 @@ impl AddDialog {
                         this.confirm.set_sensitive(true);
                         if from_qr {
                             this.renew_qr();
-                            this.qr_status
-                                .error(&l10n::error_pair_qr_failed(&error));
+                            this.qr_status.error(&l10n::error_pair_qr_failed(&error));
                         } else {
                             this.code_status.error(&l10n::error_message(&error));
                         }
