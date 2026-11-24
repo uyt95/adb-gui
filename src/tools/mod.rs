@@ -226,7 +226,15 @@ impl Tools {
                 break;
             }
         }
-        let connect_error = self.connect_saved(&connection).err();
+        // connect_saved looks the port up once more, so keep the address it
+        // reached: it may have found the service the loop above missed.
+        let connect_error = match self.connect_saved(&connection) {
+            Ok(reached) => {
+                connection.address = reached.address;
+                None
+            }
+            Err(error) => Some(error),
+        };
         if connect_error.is_none() {
             let device = Device {
                 serial: connection.address.clone(),
