@@ -1,9 +1,12 @@
 //! Adding a connection: pairing for wireless debugging (Android 11+), with a
 //! pairing code or a QR code, or a plain address for classic network debugging.
-//! Each tab is its own widget; this dialog holds them and runs the pairing.
+//! Each page is its own module; this dialog holds them, lists them on its
+//! first page, and looks for devices and runs the pairing.
 
-mod code_tab;
-mod qr_tab;
+mod address_page;
+mod code_page;
+mod page;
+mod qr_page;
 mod status;
 
 use std::cell::{Cell, RefCell};
@@ -13,53 +16,35 @@ use std::time::Duration;
 use adw::prelude::*;
 use gtk::glib;
 
-use super::connection_form::ConnectionForm;
 use crate::l10n;
-use crate::models::Connection;
 use crate::state::AppState;
 use crate::tools::{MdnsService, MdnsServiceType, Paired};
-use code_tab::CodeTab;
-use qr_tab::QrTab;
+use address_page::AddressPage;
+use code_page::CodePage;
+use page::{page_content, scrolled, subpage};
+use qr_page::QrPage;
 
 /// How often the dialog looks for devices that are ready to pair.
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
-
-const PAGE_CODE: &str = "code";
-const PAGE_QR: &str = "qr";
-const PAGE_ADDRESS: &str = "address";
-
-/// One way to add a connection: a row on the first page and its own page.
-type Subpage<'a> = (
-    &'static str,
-    &'static str,
-    &'static str,
-    &'static str,
-    gtk::Widget,
-    Option<&'a gtk::Button>,
-);
 
 struct AddDialog {
     state: Rc<AppState>,
     dialog: adw::Dialog,
     navigation: adw::NavigationView,
-    /// Pair on the pairing code page; greyed out while a pairing runs.
-    pair_button: gtk::Button,
     closed: Cell<bool>,
     /// A pairing runs; no second one starts meanwhile.
     pairing: Cell<bool>,
     /// An mDNS lookup runs; the next poll skips its turn.
     polling: Cell<bool>,
-    code_tab: Rc<CodeTab>,
-    qr_tab: QrTab,
-    address_form: ConnectionForm,
+    code_page: Rc<CodePage>,
+    qr_page: QrPage,
+    address_page: AddressPage,
 }
 
 /// Shows the dialog for adding a connection. It opens on a list of the
 /// three ways to add one; each leads to its own page with a back button,
 /// so the header bar only ever holds that page's title and action.
 pub fn add_dialog(state: &Rc<AppState>, parent: &impl IsA<gtk::Widget>) {
-    let pair_button = suggested_button(l10n::button_pair());
-    let add_button = suggested_button(l10n::button_add());
     let navigation = adw::NavigationView::builder().width_request(560).build();
     let dialog = adw::Dialog::builder()
         .title(l10n::dialog_title_connection_add())
@@ -74,64 +59,51 @@ pub fn add_dialog(state: &Rc<AppState>, parent: &impl IsA<gtk::Widget>) {
         state: state.clone(),
         dialog: dialog.clone(),
         navigation: navigation.clone(),
-        pair_button: pair_button.clone(),
         closed: Cell::new(false),
         pairing: Cell::new(false),
         polling: Cell::new(false),
-        code_tab: CodeTab::new(),
-        qr_tab: QrTab::new(),
-        address_form: ConnectionForm::new(Connection::default()),
+        code_page: CodePage::new(),
+        qr_page: QrPage::new(),
+        address_page: AddressPage::new(),
     });
 
     let choices = adw::PreferencesGroup::new();
     let content = page_content(l10n::add_connection_help());
     content.append(&choices);
-    navigation.add(&page(
+    navigation.add(&subpage(
         "choose",
         l10n::dialog_title_connection_add(),
         &scrolled(&content),
         None,
     ));
-
-    let address_content = page_content(l10n::pair_address_help());
-    address_content.append(&this.address_form.widget);
-    let subpages: [Subpage; 3] = [
+    let subpages = [
         (
-            PAGE_CODE,
+            &this.code_page.page,
             "input-dialpad-symbolic",
-            l10n::add_by_code(),
             l10n::add_by_code_description(),
-            this.code_tab.widget.clone(),
-            Some(&pair_button),
         ),
         (
-            PAGE_QR,
+            &this.qr_page.page,
             "camera-photo-symbolic",
-            l10n::add_by_qr(),
             l10n::add_by_qr_description(),
-            this.qr_tab.widget.clone(),
-            None,
         ),
         (
-            PAGE_ADDRESS,
+            &this.address_page.page,
             "network-wired-symbolic",
-            l10n::add_by_address(),
             l10n::add_by_address_description(),
-            scrolled(&address_content),
-            Some(&add_button),
         ),
     ];
-    for (tag, icon, title, description, content, action) in subpages {
-        navigation.add(&page(tag, title, &content, action));
+    for (page, icon, description) in subpages {
+        navigation.add(page);
         let row = adw::ActionRow::builder()
-            .title(title)
+            .title(page.title())
             .subtitle(description)
             .activatable(true)
             .build();
         row.add_prefix(&gtk::Image::from_icon_name(icon));
         row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
-        let navigation = navigation.clone();
-        row.connect_activated(move |_| navigation.push_by_tag(tag));
+        let (navigation, page) = (navigation.clone(), page.clone());
+        row.connect_activated(move |_| navigation.push(&page));
         choices.add(&row);
     }
 
@@ -141,7 +113,7 @@ pub fn add_dialog(state: &Rc<AppState>, parent: &impl IsA<gtk::Widget>) {
             this.page_changed();
         }
     });
-    for button in [&pair_button, &add_button] {
+    for button in [&this.code_page.pair_button, &this.address_page.add_button] {
         let weak = Rc::downgrade(&this);
         button.connect_clicked(move |_| {
             if let Some(this) = weak.upgrade() {
@@ -149,7 +121,7 @@ pub fn add_dialog(state: &Rc<AppState>, parent: &impl IsA<gtk::Widget>) {
             }
         });
     }
-    for row in [&this.code_tab.code, &this.address_form.address] {
+    for row in [&this.code_page.code, &this.address_page.form.address] {
         let weak = Rc::downgrade(&this);
         row.connect_entry_activated(move |_| {
             if let Some(this) = weak.upgrade() {
@@ -191,8 +163,8 @@ impl AddDialog {
 
     fn page_changed(self: &Rc<Self>) {
         match self.page().as_str() {
-            PAGE_CODE => self.code_tab.address.grab_focus(),
-            PAGE_ADDRESS => self.address_form.name.grab_focus(),
+            code_page::TAG => self.code_page.address.grab_focus(),
+            address_page::TAG => self.address_page.form.name.grab_focus(),
             _ => false,
         };
         // Look right away instead of after the next interval.
@@ -202,20 +174,22 @@ impl AddDialog {
     /// Pair is greyed out while a pairing runs. Add on the address page
     /// stays usable: adding a connection does not affect the pairing.
     fn update_pair_button(&self) {
-        self.pair_button.set_sensitive(!self.pairing.get());
+        self.code_page
+            .pair_button
+            .set_sensitive(!self.pairing.get());
     }
 
     fn confirm(self: &Rc<Self>) {
         match self.page().as_str() {
-            PAGE_ADDRESS => {
+            address_page::TAG => {
                 // Saves a connection for classic network debugging.
-                if let Some(connection) = self.address_form.connection() {
+                if let Some(connection) = self.address_page.form.connection() {
                     self.state.update_db(|db| db.put_connection(connection));
                     self.dialog.close();
                 }
             }
-            PAGE_CODE => {
-                if let Some((address, code)) = self.code_tab.input() {
+            code_page::TAG => {
+                if let Some((address, code)) = self.code_page.input() {
                     self.pair(address, code, false);
                 }
             }
@@ -223,13 +197,13 @@ impl AddDialog {
         }
     }
 
-    /// Looks for pairing services: those to list on the code tab, and the one
+    /// Looks for pairing services: those to list on the pairing code page, and the one
     /// of a device that scanned the QR code.
     fn poll(self: &Rc<Self>) {
         if self.closed.get()
             || self.pairing.get()
             || self.polling.get()
-            || !matches!(self.page().as_str(), PAGE_CODE | PAGE_QR)
+            || !matches!(self.page().as_str(), code_page::TAG | qr_page::TAG)
         {
             return;
         }
@@ -243,16 +217,16 @@ impl AddDialog {
                 if this.closed.get() {
                     return;
                 }
-                let qr_name = this.qr_tab.name();
+                let qr_name = this.qr_page.name();
                 let (scanned, waiting): (Vec<MdnsService>, Vec<MdnsService>) = services
                     .into_iter()
                     .filter(|s| s.service_type == MdnsServiceType::Pairing)
                     .partition(|s| s.instance == qr_name);
-                this.code_tab.show_found(waiting);
+                this.code_page.show_found(waiting);
                 if let Some(service) = scanned.into_iter().next()
-                    && this.page() == PAGE_QR
+                    && this.page() == qr_page::TAG
                 {
-                    this.pair(service.address, this.qr_tab.password(), true);
+                    this.pair(service.address, this.qr_page.password(), true);
                 }
             },
         );
@@ -264,9 +238,9 @@ impl AddDialog {
             return;
         }
         let status = if from_qr {
-            &self.qr_tab.status
+            &self.qr_page.status
         } else {
-            &self.code_tab.status
+            &self.code_page.status
         };
         status.progress(l10n::pair_in_progress());
         self.update_pair_button();
@@ -295,12 +269,12 @@ impl AddDialog {
                         this.pairing.set(false);
                         this.update_pair_button();
                         if from_qr {
-                            this.qr_tab.renew();
-                            this.qr_tab
+                            this.qr_page.renew();
+                            this.qr_page
                                 .status
                                 .error(&l10n::error_pair_qr_failed(&error));
                         } else {
-                            this.code_tab.status.error(&l10n::error_message(&error));
+                            this.code_page.status.error(&l10n::error_message(&error));
                         }
                     }
                 }
@@ -336,64 +310,4 @@ fn save_paired(state: &AppState, paired: Paired) {
         None => state.show_message(&l10n::paired_with(&name)),
         Some(error) => state.show_error(&l10n::error_paired_not_connected(&name, &error)),
     }
-}
-
-/// A subpage of the dialog: a header bar with a back button, the title and
-/// an optional action button, above `content`.
-fn page(
-    tag: &str,
-    title: &str,
-    content: &gtk::Widget,
-    action: Option<&gtk::Button>,
-) -> adw::NavigationPage {
-    let header = adw::HeaderBar::new();
-    if let Some(action) = action {
-        header.pack_end(action);
-    }
-    let toolbar = adw::ToolbarView::new();
-    toolbar.add_top_bar(&header);
-    toolbar.set_content(Some(content));
-    adw::NavigationPage::builder()
-        .tag(tag)
-        .title(title)
-        .child(&toolbar)
-        .build()
-}
-
-fn suggested_button(label: &str) -> gtk::Button {
-    gtk::Button::builder()
-        .label(label)
-        .css_classes(["suggested-action"])
-        .build()
-}
-
-/// A page's content box, starting with its help text.
-fn page_content(help: &str) -> gtk::Box {
-    let content = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(12)
-        .margin_top(12)
-        .margin_bottom(18)
-        .margin_start(18)
-        .margin_end(18)
-        .build();
-    content.append(
-        &gtk::Label::builder()
-            .label(help)
-            .wrap(true)
-            .xalign(0.0)
-            .css_classes(["dim-label"])
-            .build(),
-    );
-    content
-}
-
-fn scrolled(content: &gtk::Box) -> gtk::Widget {
-    gtk::ScrolledWindow::builder()
-        .hscrollbar_policy(gtk::PolicyType::Never)
-        .propagate_natural_height(true)
-        .max_content_height(640)
-        .child(content)
-        .build()
-        .upcast()
 }

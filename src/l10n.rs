@@ -426,7 +426,7 @@ pub fn add_by_address_description() -> &'static str {
     )
 }
 
-pub fn pair_tab_qr() -> &'static str {
+pub fn qr_code_label() -> &'static str {
     pick("QR code", "QR-code")
 }
 

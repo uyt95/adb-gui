@@ -1,4 +1,4 @@
-//! The "QR code" tab: a code that a phone or tablet scans to pair.
+//! The "Pair with QR code" page: a code that a phone or tablet scans to pair.
 
 use std::cell::RefCell;
 use std::collections::hash_map::RandomState;
@@ -6,12 +6,14 @@ use std::hash::{BuildHasher, Hasher};
 
 use adw::prelude::*;
 
+use super::page::{page_content, scrolled, subpage};
 use super::status::Status;
-use super::{page_content, scrolled};
 use crate::l10n;
 
-pub struct QrTab {
-    pub widget: gtk::Widget,
+pub const TAG: &str = "qr";
+
+pub struct QrPage {
+    pub page: adw::NavigationPage,
     pub status: Status,
     /// The service name and password in the QR code. The device advertises
     /// a pairing service under this name once it has scanned the code.
@@ -23,8 +25,8 @@ pub struct QrTab {
     frame: gtk::Box,
 }
 
-impl QrTab {
-    pub fn new() -> QrTab {
+impl QrPage {
+    pub fn new() -> QrPage {
         let frame = gtk::Box::builder().halign(gtk::Align::Center).build();
         let status = Status::new();
         status.widget.set_halign(gtk::Align::Center);
@@ -32,15 +34,15 @@ impl QrTab {
         let content = page_content(l10n::pair_qr_help());
         content.append(&frame);
         content.append(&status.widget);
-        let tab = QrTab {
-            widget: scrolled(&content),
+        let page = QrPage {
+            page: subpage(TAG, l10n::add_by_qr(), &scrolled(&content), None),
             status,
             name: RefCell::new(new_name()),
             password: RefCell::new(new_password()),
             frame,
         };
-        tab.draw();
-        tab
+        page.draw();
+        page
     }
 
     pub fn name(&self) -> String {
@@ -133,7 +135,7 @@ fn qr_widget(text: &str) -> gtk::Widget {
         }
         let _ = cr.fill();
     });
-    area.update_property(&[gtk::accessible::Property::Label(l10n::pair_tab_qr())]);
+    area.update_property(&[gtk::accessible::Property::Label(l10n::qr_code_label())]);
     area.upcast()
 }
 

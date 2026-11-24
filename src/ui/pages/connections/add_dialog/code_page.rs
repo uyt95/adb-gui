@@ -1,4 +1,4 @@
-//! The "Pairing code" tab: the address and code a device shows, and a list
+//! The "Pair with pairing code" page: the address and code a device shows, and a list
 //! of devices on the network that are showing one.
 
 use std::cell::RefCell;
@@ -6,14 +6,18 @@ use std::rc::{Rc, Weak};
 
 use adw::prelude::*;
 
+use super::page::{page_content, scrolled, subpage, suggested_button};
 use super::status::Status;
-use super::{page_content, scrolled};
 use crate::l10n;
 use crate::tools::MdnsService;
 use crate::ui::widgets::{self, Validation};
 
-pub struct CodeTab {
-    pub widget: gtk::Widget,
+pub const TAG: &str = "code";
+
+pub struct CodePage {
+    pub page: adw::NavigationPage,
+    /// Greyed out while a pairing runs.
+    pub pair_button: gtk::Button,
     pub address: adw::EntryRow,
     pub code: adw::EntryRow,
     validation: Validation,
@@ -24,8 +28,8 @@ pub struct CodeTab {
     found: RefCell<Vec<MdnsService>>,
 }
 
-impl CodeTab {
-    pub fn new() -> Rc<CodeTab> {
+impl CodePage {
+    pub fn new() -> Rc<CodePage> {
         let address = widgets::entry_row(l10n::field_pairing_address(), "");
         let code = widgets::entry_row(l10n::field_pairing_code(), "");
         let group = adw::PreferencesGroup::new();
@@ -43,8 +47,15 @@ impl CodeTab {
         content.append(&validation.label);
         content.append(&status.widget);
         content.append(&found_group);
-        Rc::new(CodeTab {
-            widget: scrolled(&content),
+        let pair_button = suggested_button(l10n::button_pair());
+        Rc::new(CodePage {
+            page: subpage(
+                TAG,
+                l10n::add_by_code(),
+                &scrolled(&content),
+                Some(&pair_button),
+            ),
+            pair_button,
             address,
             code,
             validation,
@@ -76,7 +87,7 @@ impl CodeTab {
             let row = widgets::action_row(&service.address, Some(&service.instance));
             row.set_activatable(true);
             row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
-            let weak: Weak<CodeTab> = Rc::downgrade(self);
+            let weak: Weak<CodePage> = Rc::downgrade(self);
             let address = service.address.clone();
             row.connect_activated(move |_| {
                 if let Some(this) = weak.upgrade() {
