@@ -106,3 +106,87 @@ pub fn enable_search(row: &adw::ComboRow) {
         "string",
     )));
 }
+
+/// Shows the whole label of each combo row item instead of cutting it off:
+/// the selected value and the popover entries wrap onto more lines.
+pub fn wrap_labels(row: &adw::ComboRow) {
+    row.set_factory(Some(&label_factory(None)));
+    row.set_list_factory(Some(&label_factory(Some(row))));
+}
+
+/// Builds labels for `gtk::StringObject` items. With `row`, it is the popover
+/// list and each entry gets the check mark that shows the current selection.
+fn label_factory(row: Option<&adw::ComboRow>) -> gtk::SignalListItemFactory {
+    let factory = gtk::SignalListItemFactory::new();
+    let in_popover = row.is_some();
+    let row = row.map(|row| row.downgrade());
+    let row_for_bind = row.clone();
+    factory.connect_setup(move |_, item| {
+        let Some(item) = item.downcast_ref::<gtk::ListItem>() else {
+            return;
+        };
+        let label = gtk::Label::builder()
+            .wrap(true)
+            .wrap_mode(gtk::pango::WrapMode::WordChar)
+            .xalign(if in_popover { 0.0 } else { 1.0 })
+            .justify(if in_popover {
+                gtk::Justification::Left
+            } else {
+                gtk::Justification::Right
+            })
+            .max_width_chars(if in_popover { 36 } else { 24 })
+            .build();
+        if !in_popover {
+            item.set_child(Some(&label));
+            return;
+        }
+        let check = gtk::Image::from_icon_name("object-select-symbolic");
+        check.set_valign(gtk::Align::Center);
+        let content = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        label.set_hexpand(true);
+        content.append(&label);
+        content.append(&check);
+        item.set_child(Some(&content));
+        if let Some(row) = row.as_ref().and_then(|row| row.upgrade()) {
+            let item = item.downgrade();
+            let check = check.downgrade();
+            row.connect_selected_item_notify(move |row| {
+                if let (Some(item), Some(check)) = (item.upgrade(), check.upgrade()) {
+                    update_check(row, &item, &check);
+                }
+            });
+        }
+    });
+    factory.connect_bind(move |_, item| {
+        let Some(item) = item.downcast_ref::<gtk::ListItem>() else {
+            return;
+        };
+        let text = item
+            .item()
+            .and_downcast::<gtk::StringObject>()
+            .map(|s| s.string())
+            .unwrap_or_default();
+        let child = item.child();
+        let label = match child.as_ref().and_then(|c| c.downcast_ref::<gtk::Box>()) {
+            Some(content) => content.first_child().and_downcast::<gtk::Label>(),
+            None => child.and_downcast::<gtk::Label>(),
+        };
+        if let Some(label) = label {
+            label.set_label(&text);
+        }
+        let check = item
+            .child()
+            .and_downcast::<gtk::Box>()
+            .and_then(|content| content.last_child())
+            .and_downcast::<gtk::Image>();
+        if let (Some(row), Some(check)) = (row_for_bind.as_ref().and_then(|r| r.upgrade()), check) {
+            update_check(&row, item, &check);
+        }
+    });
+    factory
+}
+
+fn update_check(row: &adw::ComboRow, item: &gtk::ListItem, check: &gtk::Image) {
+    let selected = row.selected_item().is_some() && row.selected_item() == item.item();
+    check.set_opacity(if selected { 1.0 } else { 0.0 });
+}

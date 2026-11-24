@@ -176,6 +176,8 @@ impl CommandsEditor {
                         .selected(selected as u32)
                         .build();
                     widgets::enable_search(&row);
+                    // Labels carry the Android version, so show them in full.
+                    widgets::wrap_labels(&row);
                     let unknown = argument.value.clone();
                     row.connect_selected_notify(move |row| {
                         let code = match KEY_CODES.get(row.selected() as usize) {
