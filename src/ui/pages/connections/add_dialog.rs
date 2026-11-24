@@ -13,7 +13,7 @@ use gtk::glib;
 use crate::l10n;
 use crate::models::Connection;
 use crate::state::AppState;
-use crate::tools::{MdnsService, MdnsServiceType, Paired, address_host};
+use crate::tools::{MdnsService, MdnsServiceType, Paired};
 use crate::ui::widgets::{self, Validation};
 
 /// How often the dialog looks for devices that are ready to pair.
@@ -452,20 +452,23 @@ impl AddDialog {
 }
 
 /// Saves a newly paired device. A saved connection for the same device, by
-/// mDNS name or by an address on the same host without one, is updated and
-/// keeps its name, so pairing again does not add a duplicate.
+/// mDNS name, is updated and keeps its name, so pairing again does not add a
+/// duplicate. Any other pairing is added as a new connection: an address
+/// alone can belong to another device (a reused IP, a forwarded port), so it
+/// never decides which saved connection is replaced.
 fn save_paired(state: &AppState, paired: Paired) {
     let Paired {
         mut connection,
         connect_error,
     } = paired;
-    if let Some(existing) = state.db.borrow().connections.iter().find(|c| {
-        if c.mdns_name.is_empty() {
-            address_host(&c.address) == address_host(&connection.address)
-        } else {
-            c.mdns_name == connection.mdns_name
-        }
-    }) {
+    if !connection.mdns_name.is_empty()
+        && let Some(existing) = state
+            .db
+            .borrow()
+            .connections
+            .iter()
+            .find(|c| c.mdns_name == connection.mdns_name)
+    {
         connection.id = existing.id;
         connection.name = existing.name.clone();
     }
