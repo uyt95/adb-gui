@@ -67,12 +67,13 @@ fn row(
     connection: Connection,
     device: Option<Device>,
 ) -> adw::ActionRow {
-    let subtitle = if connection.address.is_empty() {
-        &connection.mdns_name
-    } else {
-        &connection.address
-    };
-    let row = widgets::action_row(&connection.name, Some(subtitle));
+    // The address, then the mDNS name of a wireless debugging device.
+    let subtitle = [connection.address.as_str(), connection.mdns_name.as_str()]
+        .into_iter()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ");
+    let row = widgets::action_row(&connection.name, Some(&subtitle));
     let connected = device.is_some();
     row.add_suffix(&widgets::status_label(
         if connected {

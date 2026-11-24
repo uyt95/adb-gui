@@ -14,6 +14,18 @@ pub fn edit_dialog(state: &Rc<AppState>, parent: &impl IsA<gtk::Widget>, connect
     let group = adw::PreferencesGroup::new();
     group.add(&name);
     group.add(&address);
+    // The mDNS name identifies a paired device; it comes from pairing and
+    // cannot be changed here.
+    if !connection.mdns_name.is_empty() {
+        let mdns_name = adw::ActionRow::builder()
+            .title(l10n::field_mdns_name())
+            .subtitle(&connection.mdns_name)
+            .use_markup(false)
+            .subtitle_selectable(true)
+            .css_classes(["property"])
+            .build();
+        group.add(&mdns_name);
+    }
     let validation = Validation::new();
     let content = gtk::Box::new(gtk::Orientation::Vertical, 0);
     content.append(&group);

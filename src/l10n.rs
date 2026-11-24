@@ -227,6 +227,10 @@ pub fn field_address() -> &'static str {
     pick("Address", "Adres")
 }
 
+pub fn field_mdns_name() -> &'static str {
+    pick("mDNS name", "mDNS-naam")
+}
+
 pub fn field_pairing_address() -> &'static str {
     pick("IP address and port", "IP-adres en poort")
 }
