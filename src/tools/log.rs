@@ -173,12 +173,17 @@ fn command_line(program: &str, arguments: &[String]) -> String {
 }
 
 fn display_word(word: &str) -> String {
-    // Text for `adb shell` is already quoted for the device shell; show it as is.
-    let already_quoted = word.len() >= 2 && word.starts_with('\'') && word.ends_with('\'');
+    // Text for `adb shell` is already quoted for the device shell; show it as
+    // is. Only a word that is exactly what `shell_quote` makes counts, so
+    // something like `'a' 'b'` is still quoted as one word.
+    let already_quoted = word.len() >= 2
+        && word.starts_with('\'')
+        && word.ends_with('\'')
+        && super::shell_quote(&word[1..word.len() - 1].replace(r"'\''", "'")) == word;
     let needs_quotes = word.is_empty()
         || word
             .chars()
-            .any(|c| c.is_whitespace() || "\"'\\$`;&|<>()*?!#~".contains(c));
+            .any(|c| c.is_whitespace() || "\"'\\$`;&|<>()*?!#~[]{}".contains(c));
     if needs_quotes && !already_quoted {
         super::shell_quote(word)
     } else {
@@ -454,6 +459,17 @@ mod tests {
         let text = log.snapshot()[0].to_text();
         assert!(text.contains("] $ adb forward tcp:8080 tcp:80\nexit 0, "));
         assert!(text.ends_with("stdout:\n8080\n"));
+    }
+
+    #[test]
+    fn quotes_words_the_shell_would_change() {
+        assert_eq!(display_word("/sdcard/shot[1].png"), "'/sdcard/shot[1].png'");
+        assert_eq!(display_word("{a,b}"), "'{a,b}'");
+        assert_eq!(display_word("'a' 'b'"), r"''\''a'\'' '\''b'\'''");
+        assert_eq!(display_word("plain"), "plain");
+        // Text the app already quoted for the device shell stays as it is.
+        let quoted = crate::tools::shell_quote("it's here");
+        assert_eq!(display_word(&quoted), quoted);
     }
 
     #[test]
