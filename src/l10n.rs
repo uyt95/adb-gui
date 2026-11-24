@@ -386,16 +386,48 @@ pub fn empty_proxies_description() -> &'static str {
     )
 }
 
-pub fn pair_tab_code() -> &'static str {
-    pick("Pairing code", "Koppelcode")
+pub fn add_connection_help() -> &'static str {
+    pick(
+        "How does the device allow debugging over the network?",
+        "Hoe staat het toestel foutopsporing via het netwerk toe?",
+    )
+}
+
+pub fn add_by_code() -> &'static str {
+    pick("Pair with pairing code", "Koppelen met koppelcode")
+}
+
+pub fn add_by_code_description() -> &'static str {
+    pick(
+        "Wireless debugging on Android 11 and newer, for example Google TV",
+        "Draadloze foutopsporing op Android 11 en nieuwer, bijvoorbeeld Google TV",
+    )
+}
+
+pub fn add_by_qr() -> &'static str {
+    pick("Pair with QR code", "Koppelen met QR-code")
+}
+
+pub fn add_by_qr_description() -> &'static str {
+    pick(
+        "Wireless debugging on an Android 11+ phone or tablet with a camera",
+        "Draadloze foutopsporing op een Android 11+ telefoon of tablet met camera",
+    )
+}
+
+pub fn add_by_address() -> &'static str {
+    pick("Connect by address", "Verbinden via adres")
+}
+
+pub fn add_by_address_description() -> &'static str {
+    pick(
+        "Classic network debugging, for example after adb tcpip 5555",
+        "Klassieke netwerk-foutopsporing, bijvoorbeeld na adb tcpip 5555",
+    )
 }
 
 pub fn pair_tab_qr() -> &'static str {
     pick("QR code", "QR-code")
-}
-
-pub fn pair_tab_address() -> &'static str {
-    pick("Address", "Adres")
 }
 
 pub fn pair_code_help() -> &'static str {
