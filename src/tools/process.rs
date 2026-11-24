@@ -5,24 +5,50 @@ use std::process::{Command, Stdio};
 use regex::RegexBuilder;
 
 use super::Result;
+use super::log::CommandLog;
 
 /// Runs a command and returns its stdout, or stderr (falling back to stdout) on failure.
-pub fn execute(command: &str, arguments: &[String]) -> Result<String> {
-    let output = Command::new(command)
+pub fn execute(log: &CommandLog, command: &str, arguments: &[String]) -> Result<String> {
+    execute_checked(log, command, arguments, |_| true)
+}
+
+/// Like [`execute`], and fails with the output when `accept` rejects it. The
+/// command is logged as failed then too.
+pub fn execute_checked(
+    log: &CommandLog,
+    command: &str,
+    arguments: &[String],
+    accept: impl Fn(&str) -> bool,
+) -> Result<String> {
+    let entry = log.start(command, arguments);
+    let output = match Command::new(command)
         .args(arguments)
         .stdin(Stdio::null())
         .output()
-        .map_err(|error| format!("{command}: {error}"))?;
+    {
+        Ok(output) => output,
+        Err(error) => {
+            let message = format!("{command}: {error}");
+            entry.not_started(&message);
+            return Err(message);
+        }
+    };
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-    if output.status.success() {
-        return Ok(stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    entry.finish(output.status.code(), &stdout, &stderr);
+    if !output.status.success() {
+        let stderr = stderr.trim();
+        return Err(if stderr.is_empty() {
+            stdout.trim().to_string()
+        } else {
+            stderr.to_string()
+        });
     }
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    Err(if stderr.is_empty() {
-        stdout.trim().to_string()
-    } else {
-        stderr
-    })
+    if !accept(&stdout) {
+        entry.reject();
+        return Err(stdout.trim().to_string());
+    }
+    Ok(stdout)
 }
 
 /// Whether the output matches any of the patterns (multi-line, case-insensitive).
@@ -46,13 +72,13 @@ pub fn validate(output: &str, patterns: &[&str]) -> bool {
 }
 
 /// Runs a command and fails with its output when the output does not validate.
-pub fn execute_validated(command: &str, arguments: &[String], patterns: &[&str]) -> Result<String> {
-    let output = execute(command, arguments)?;
-    if validate(&output, patterns) {
-        Ok(output)
-    } else {
-        Err(output.trim().to_string())
-    }
+pub fn execute_validated(
+    log: &CommandLog,
+    command: &str,
+    arguments: &[String],
+    patterns: &[&str],
+) -> Result<String> {
+    execute_checked(log, command, arguments, |output| validate(output, patterns))
 }
 
 /// Finds an executable on `PATH`, like `which`.
@@ -115,11 +141,31 @@ mod tests {
 
     #[test]
     fn execute_reports_stderr() {
-        let error = execute("sh", &["-c".into(), "echo oops >&2; exit 1".into()]).unwrap_err();
+        let log = CommandLog::default();
+        let error =
+            execute(&log, "sh", &["-c".into(), "echo oops >&2; exit 1".into()]).unwrap_err();
         assert_eq!(error, "oops");
         assert_eq!(
-            execute("sh", &["-c".into(), "echo hi".into()]).unwrap(),
+            execute(&log, "sh", &["-c".into(), "echo hi".into()]).unwrap(),
             "hi\n"
         );
+        let records = log.snapshot();
+        assert!(records[0].is_failed());
+        assert!(!records[1].is_failed());
+    }
+
+    #[test]
+    fn rejected_output_is_logged_as_failed() {
+        let log = CommandLog::default();
+        let error = execute_validated(&log, "sh", &["-c".into(), "echo nope".into()], &["^ok$"])
+            .unwrap_err();
+        assert_eq!(error, "nope");
+        assert!(execute(&log, "/nonexistent/adb", &[]).is_err());
+        let records = log.snapshot();
+        assert!(records.iter().all(|r| r.is_failed()));
+        assert!(matches!(
+            records[1].state,
+            super::super::log::RecordState::NotStarted(_)
+        ));
     }
 }

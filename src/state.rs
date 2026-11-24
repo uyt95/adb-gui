@@ -39,6 +39,8 @@ pub struct AppState {
     /// the device in the order the user made them.
     input_queue: RefCell<VecDeque<InputJob>>,
     input_busy: Cell<bool>,
+    /// Every command the tools run, for the console panel.
+    pub command_log: tools::CommandLog,
 }
 
 impl AppState {
@@ -72,6 +74,7 @@ impl AppState {
             load_problem: RefCell::new(load_problem),
             input_queue: RefCell::default(),
             input_busy: Cell::new(false),
+            command_log: tools::CommandLog::default(),
         })
     }
 
@@ -134,6 +137,7 @@ impl AppState {
         Tools {
             adb: db.settings.adb_path.clone(),
             emulator: db.settings.emulator_path.clone(),
+            log: self.command_log.clone(),
         }
     }
 

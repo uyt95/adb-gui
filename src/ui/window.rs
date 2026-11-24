@@ -1,10 +1,12 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use adw::prelude::*;
+use gtk::{gio, glib};
 
 use crate::l10n;
 use crate::state::AppState;
+use crate::ui::console;
 use crate::ui::device_selector::device_selector;
 use crate::ui::pages::{self, Callback, Page};
 
@@ -38,16 +40,92 @@ pub fn build(app: &adw::Application, state: &Rc<AppState>) -> adw::ApplicationWi
     device_controls.append(&device_selector(state));
     device_controls.append(&refresh_button);
 
+    // The console toggle. A dot on it tells about failed commands while the
+    // console is hidden.
+    let failure_dot = gtk::Box::builder()
+        .css_classes(["console-dot"])
+        .halign(gtk::Align::End)
+        .valign(gtk::Align::Start)
+        .visible(false)
+        .build();
+    let toggle_icon = gtk::Overlay::builder()
+        .child(&gtk::Image::from_icon_name("utilities-terminal-symbolic"))
+        .build();
+    toggle_icon.add_overlay(&failure_dot);
+    let console_toggle = gtk::ToggleButton::builder()
+        .child(&toggle_icon)
+        .tooltip_text(l10n::console_toggle())
+        .build();
+    console_toggle.update_property(&[gtk::accessible::Property::Label(l10n::console_title())]);
+
     let content_header = adw::HeaderBar::new();
     content_header.pack_start(&add_button);
+    // Packed first so it stays rightmost when the device controls move back in.
+    content_header.pack_end(&console_toggle);
     content_header.pack_end(&device_controls);
+
+    // The console sits below the pages; it starts hidden.
+    let log = state.command_log.clone();
+    let console_panel = console::console(&log, {
+        let console_toggle = console_toggle.clone();
+        move || console_toggle.set_active(false)
+    });
+    console_panel.set_visible(false);
+    let paned = gtk::Paned::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .start_child(&stack)
+        .end_child(&console_panel)
+        .shrink_start_child(false)
+        .resize_end_child(false)
+        .shrink_end_child(false)
+        .build();
+    let seen_failures = Rc::new(Cell::new(0u64));
+    log.subscribe({
+        let (log, console_toggle, failure_dot, seen_failures) = (
+            log.clone(),
+            console_toggle.clone(),
+            failure_dot.clone(),
+            seen_failures.clone(),
+        );
+        move || {
+            if !console_toggle.is_active() && log.failed_total() > seen_failures.get() {
+                failure_dot.set_visible(true);
+            }
+        }
+    });
+    console_toggle.connect_toggled({
+        let (state, paned, console_panel) = (state.clone(), paned.clone(), console_panel.clone());
+        move |toggle| {
+            if toggle.is_active() {
+                seen_failures.set(log.failed_total());
+                failure_dot.set_visible(false);
+                let saved = state.db.borrow().settings.console_height;
+                let height = if saved > 0 {
+                    saved
+                } else {
+                    DEFAULT_CONSOLE_HEIGHT
+                };
+                // Leave the page at least some room in short windows.
+                let height = height
+                    .min(paned.height() - MIN_PAGE_HEIGHT)
+                    .max(MIN_CONSOLE_HEIGHT);
+                console_panel.set_visible(true);
+                paned.set_position(paned.height() - height);
+            } else {
+                // Failures shown while the console was open count as seen.
+                seen_failures.set(log.failed_total());
+                save_console_height(&state, &paned, &console_panel);
+                console_panel.set_visible(false);
+            }
+        }
+    });
 
     let bottom_bar = gtk::ActionBar::builder().revealed(false).build();
 
     let content_toolbar = adw::ToolbarView::new();
     content_toolbar.add_top_bar(&content_header);
     content_toolbar.add_bottom_bar(&bottom_bar);
-    content_toolbar.set_content(Some(&stack));
+    content_toolbar.set_content(Some(&paned));
     let content_page = adw::NavigationPage::builder()
         .child(&content_toolbar)
         .title(pages[0].title)
@@ -163,5 +241,43 @@ pub fn build(app: &adw::Application, state: &Rc<AppState>) -> adw::ApplicationWi
     });
     window.add_breakpoint(breakpoint);
 
+    // Ctrl+` shows and hides the console.
+    window.add_action(&gio::PropertyAction::new(
+        "toggle-console",
+        &console_toggle,
+        "active",
+    ));
+    app.set_accels_for_action("win.toggle-console", &["<Control>grave"]);
+    window.connect_close_request({
+        let state = state.clone();
+        move |_| {
+            save_console_height(&state, &paned, &console_panel);
+            glib::Propagation::Proceed
+        }
+    });
+
+    let css = gtk::CssProvider::new();
+    css.load_from_string(console::CSS);
+    gtk::style_context_add_provider_for_display(
+        &WidgetExt::display(&window),
+        &css,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
+
     window
+}
+
+const DEFAULT_CONSOLE_HEIGHT: i32 = 260;
+const MIN_CONSOLE_HEIGHT: i32 = 120;
+const MIN_PAGE_HEIGHT: i32 = 100;
+
+/// Remembers the console's height while it is shown, for the next time it opens.
+fn save_console_height(state: &Rc<AppState>, paned: &gtk::Paned, console: &gtk::Box) {
+    if !console.is_visible() {
+        return;
+    }
+    let height = paned.height() - paned.position();
+    if height > 0 && height != state.db.borrow().settings.console_height {
+        state.update_db(|db| db.settings.console_height = height);
+    }
 }

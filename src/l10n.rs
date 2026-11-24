@@ -405,3 +405,118 @@ pub fn value_none() -> &'static str {
 pub fn keyboard_input_placeholder() -> &'static str {
     pick("Type text to send", "Typ tekst om te versturen")
 }
+
+pub fn console_title() -> &'static str {
+    pick("Console", "Console")
+}
+
+pub fn console_toggle() -> &'static str {
+    pick("Console (Ctrl+`)", "Console (Ctrl+`)")
+}
+
+pub fn console_empty() -> &'static str {
+    pick(
+        "Commands the app sends show up here.",
+        "Opdrachten die de app verstuurt, verschijnen hier.",
+    )
+}
+
+pub fn console_no_failed() -> &'static str {
+    pick("No failed commands.", "Geen mislukte opdrachten.")
+}
+
+pub fn console_filter_all() -> &'static str {
+    pick("All", "Alle")
+}
+
+pub fn console_filter_failed() -> &'static str {
+    pick("Failed", "Mislukt")
+}
+
+pub fn console_count(total: usize, failed: usize) -> String {
+    pick(
+        "{total} commands · {failed} failed",
+        "{total} opdrachten · {failed} mislukt",
+    )
+    .replace("{total}", &total.to_string())
+    .replace("{failed}", &failed.to_string())
+}
+
+pub fn button_copy_all() -> &'static str {
+    pick("Copy all", "Alles kopiëren")
+}
+
+pub fn button_clear() -> &'static str {
+    pick("Clear", "Wissen")
+}
+
+pub fn button_hide_console() -> &'static str {
+    pick("Hide console", "Console verbergen")
+}
+
+pub fn button_scroll_to_newest() -> &'static str {
+    pick(
+        "Scroll to the newest command",
+        "Naar de nieuwste opdracht scrollen",
+    )
+}
+
+pub fn console_running() -> &'static str {
+    pick("running…", "bezig…")
+}
+
+pub fn console_launched() -> &'static str {
+    pick("launched", "gestart")
+}
+
+pub fn console_not_started() -> &'static str {
+    pick("not started", "niet gestart")
+}
+
+pub fn console_signal() -> &'static str {
+    pick("stopped", "gestopt")
+}
+
+pub fn console_sent(time: &str) -> String {
+    format!("{} {time}", pick("Sent", "Verstuurd"))
+}
+
+pub fn console_no_output() -> &'static str {
+    pick("No output.", "Geen uitvoer.")
+}
+
+pub fn console_running_note() -> &'static str {
+    pick(
+        "The output appears when the command finishes.",
+        "De uitvoer verschijnt wanneer de opdracht klaar is.",
+    )
+}
+
+pub fn console_launched_note() -> &'static str {
+    pick(
+        "Started in the background. Its output is not captured.",
+        "Op de achtergrond gestart. De uitvoer wordt niet bijgehouden.",
+    )
+}
+
+pub fn console_rejected_note() -> &'static str {
+    pick(
+        "The command exited with 0, but the app did not accept its output, so it counts as failed.",
+        "De opdracht eindigde met 0, maar de app aanvaardde de uitvoer niet, dus ze telt als mislukt.",
+    )
+}
+
+pub fn console_signal_note() -> &'static str {
+    pick(
+        "The command was stopped by a signal.",
+        "De opdracht werd gestopt door een signaal.",
+    )
+}
+
+pub fn console_dropped(bytes: usize) -> String {
+    pick(
+        "{bytes} more bytes were not kept.",
+        "{bytes} bytes meer werden niet bijgehouden.",
+    )
+    .replace("{bytes}", &bytes.to_string())
+}
