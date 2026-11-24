@@ -210,6 +210,15 @@ pub fn error_paired_not_connected(name: &str, error: &str) -> String {
     }
 }
 
+pub fn error_pair_qr_failed(error: &str) -> String {
+    match lang() {
+        Lang::En => format!("Pairing failed: {error}. Scan the new code to try again."),
+        Lang::Nl => {
+            format!("Koppelen is mislukt: {error}. Scan de nieuwe code om het opnieuw te proberen.")
+        }
+    }
+}
+
 pub fn error_missing_name() -> &'static str {
     pick("Name is a required field", "Naam is een verplicht veld")
 }

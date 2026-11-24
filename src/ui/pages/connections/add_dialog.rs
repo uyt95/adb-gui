@@ -91,8 +91,12 @@ struct AddDialog {
 
     /// The service name and password in the QR code. The device advertises
     /// a pairing service under this name once it has scanned the code.
-    qr_name: String,
-    qr_password: String,
+    /// Both are replaced after a failed pairing, so the device must scan
+    /// again instead of the dialog retrying the same service.
+    qr_name: RefCell<String>,
+    qr_password: RefCell<String>,
+    /// Holds the QR code, so it can be redrawn with a new name and password.
+    qr_frame: gtk::Box,
     qr_status: Status,
 
     name: adw::EntryRow,
@@ -149,8 +153,9 @@ pub fn add_dialog(state: &Rc<AppState>, parent: &impl IsA<gtk::Widget>) {
         found: RefCell::default(),
         code_validation: Validation::new(),
         code_status: Status::new(),
-        qr_name: format!("adb-gui-{}", random_text(8)),
-        qr_password: random_text(12),
+        qr_name: RefCell::new(new_qr_name()),
+        qr_password: RefCell::new(new_qr_password()),
+        qr_frame: gtk::Box::builder().halign(gtk::Align::Center).build(),
         qr_status: Status::new(),
         name: widgets::entry_row(l10n::field_name(), ""),
         address: widgets::entry_row(l10n::field_address(), ""),
@@ -241,11 +246,28 @@ impl AddDialog {
 
     fn qr_page(self: &Rc<Self>) -> gtk::Widget {
         let content = page_content(l10n::pair_qr_help());
-        content.append(&qr_widget(&qr_text(&self.qr_name, &self.qr_password)));
+        self.draw_qr();
+        content.append(&self.qr_frame);
         self.qr_status.widget.set_halign(gtk::Align::Center);
         self.qr_status.progress(l10n::pair_qr_waiting());
         content.append(&self.qr_status.widget);
         scrolled(&content)
+    }
+
+    fn draw_qr(&self) {
+        while let Some(child) = self.qr_frame.first_child() {
+            self.qr_frame.remove(&child);
+        }
+        let text = qr_text(&self.qr_name.borrow(), &self.qr_password.borrow());
+        self.qr_frame.append(&qr_widget(&text));
+    }
+
+    /// Shows a new QR code after a failed pairing. The device has to scan
+    /// it, which starts a fresh pairing service under the new name.
+    fn renew_qr(&self) {
+        self.qr_name.replace(new_qr_name());
+        self.qr_password.replace(new_qr_password());
+        self.draw_qr();
     }
 
     fn address_page(self: &Rc<Self>) -> gtk::Widget {
@@ -340,12 +362,12 @@ impl AddDialog {
                 let (scanned, waiting): (Vec<MdnsService>, Vec<MdnsService>) = services
                     .into_iter()
                     .filter(|s| s.service_type == MdnsServiceType::Pairing)
-                    .partition(|s| s.instance == this.qr_name);
+                    .partition(|s| s.instance == *this.qr_name.borrow());
                 this.show_found(waiting);
                 if let Some(service) = scanned.into_iter().next()
                     && this.tab() == TAB_QR
                 {
-                    let password = this.qr_password.clone();
+                    let password = this.qr_password.borrow().clone();
                     this.pair(service.address, password, true);
                 }
             },
@@ -416,12 +438,13 @@ impl AddDialog {
                         };
                         this.pairing.set(false);
                         this.confirm.set_sensitive(true);
-                        let status = if from_qr {
-                            &this.qr_status
+                        if from_qr {
+                            this.renew_qr();
+                            this.qr_status
+                                .error(&l10n::error_pair_qr_failed(&error));
                         } else {
-                            &this.code_status
-                        };
-                        status.error(&l10n::error_message(&error));
+                            this.code_status.error(&l10n::error_message(&error));
+                        }
                     }
                 }
             },
@@ -461,6 +484,14 @@ fn qr_text(name: &str, password: &str) -> String {
 }
 
 /// Random letters and digits, leaving out ones that look alike.
+fn new_qr_name() -> String {
+    format!("adb-gui-{}", random_text(8))
+}
+
+fn new_qr_password() -> String {
+    random_text(12)
+}
+
 fn random_text(length: usize) -> String {
     const ALPHABET: &[u8] = b"abcdefghijkmnpqrstuvwxyz23456789";
     // RandomState is seeded from the operating system's random source.
