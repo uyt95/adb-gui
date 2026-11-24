@@ -114,16 +114,24 @@ fn row(
                     move |tools| tools.connect_saved(&connection),
                     |state, result| {
                         match result {
-                            // Remember the new port for the next time.
+                            // Remember the new port for the next time. Only
+                            // the address and mDNS name are written back, so
+                            // a rename made while connecting is kept.
                             Ok(reached) => {
-                                if state
+                                let stored = state
                                     .db
                                     .borrow()
                                     .connections
                                     .iter()
-                                    .any(|c| c.id == reached.id && *c != reached)
+                                    .find(|c| c.id == reached.id)
+                                    .cloned();
+                                if let Some(mut stored) = stored
+                                    && (stored.address != reached.address
+                                        || stored.mdns_name != reached.mdns_name)
                                 {
-                                    state.update_db(|db| db.put_connection(reached));
+                                    stored.address = reached.address;
+                                    stored.mdns_name = reached.mdns_name;
+                                    state.update_db(|db| db.put_connection(stored));
                                 }
                             }
                             Err(error) => state.show_error(&error),
