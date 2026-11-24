@@ -78,8 +78,21 @@ impl Tools {
         if reached.address.trim().is_empty() {
             return Err(l10n::error_device_not_found().to_string());
         }
-        self.connect(&reached.address)?;
+        // adb connects a paired device by itself over mDNS, under its mDNS
+        // name. Connecting again by ip:port would list the device twice.
+        if self.connected_device(&reached).is_none() {
+            self.connect(&reached.address)?;
+        }
         Ok(reached)
+    }
+
+    /// The device adb already has ready for a saved connection, listed under
+    /// its address or its mDNS name.
+    fn connected_device(&self, connection: &Connection) -> Option<Device> {
+        self.list_devices()
+            .ok()?
+            .into_iter()
+            .find(|d| d.is_ready() && d.matches_connection(connection))
     }
 
     /// Services that devices on the network advertise for wireless
@@ -132,10 +145,12 @@ impl Tools {
             Err(error) => Some(error),
         };
         if connect_error.is_none() {
-            let device = Device {
+            // Read the model through the entry adb has for the device, which
+            // is the mDNS name when adb connected it by itself.
+            let device = self.connected_device(&connection).unwrap_or(Device {
                 serial: connection.address.clone(),
                 state: "device".into(),
-            };
+            });
             connection.name = self
                 .adb_lines(Some(&device), &["shell", "getprop", "ro.product.model"])
                 .into_iter()
@@ -154,6 +169,24 @@ impl Tools {
             connection,
             connect_error,
         })
+    }
+
+    /// Disconnects every entry adb has for a saved connection. One device can
+    /// be listed twice: under its ip:port and under its mDNS name.
+    pub fn disconnect_connection(&self, connection: &Connection) -> Result<()> {
+        let mut result = Ok(());
+        for device in self
+            .list_devices()?
+            .into_iter()
+            .filter(|d| d.matches_connection(connection))
+        {
+            if let Err(error) = self.disconnect(&device.serial)
+                && result.is_ok()
+            {
+                result = Err(error);
+            }
+        }
+        result
     }
 
     /// Disconnects a device by its serial or address.

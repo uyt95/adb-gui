@@ -101,12 +101,12 @@ fn row(
         let state = state.clone();
         let connection = connection.clone();
         move || match &device {
-            // Disconnect by the serial adb lists, which is the mDNS name when
-            // adb connected the device by itself.
-            Some(device) => {
-                let serial = device.serial.clone();
+            // Disconnect every entry adb lists for the connection: by its
+            // address, and by its mDNS name when adb connected it by itself.
+            Some(_) => {
+                let connection = connection.clone();
                 state.run_action(
-                    move |tools| tools.disconnect(&serial),
+                    move |tools| tools.disconnect_connection(&connection),
                     |state| state.load_devices(),
                 );
             }
