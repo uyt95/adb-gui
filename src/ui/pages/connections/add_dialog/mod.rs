@@ -222,7 +222,15 @@ impl AddDialog {
                     .into_iter()
                     .filter(|s| s.service_type == MdnsServiceType::Pairing)
                     .partition(|s| s.instance == qr_name);
-                this.code_page.show_found(waiting);
+                // Leave out the services of earlier QR codes too: after a
+                // failed QR pairing the phone keeps advertising the old one
+                // for a while, and it cannot be paired with a code.
+                this.code_page.show_found(
+                    waiting
+                        .into_iter()
+                        .filter(|s| !s.instance.starts_with(qr_page::NAME_PREFIX))
+                        .collect(),
+                );
                 if let Some(service) = scanned.into_iter().next()
                     && this.page() == qr_page::TAG
                 {

@@ -71,12 +71,17 @@ impl QrPage {
 }
 
 /// The text of a QR code that Android's "Pair device with QR code" accepts.
+/// How every QR service name starts. A pairing service with such a name
+/// was started by a QR code from this app, so it expects that code's
+/// password and can never be paired with a pairing code.
+pub const NAME_PREFIX: &str = "adb-gui-";
+
 fn qr_text(name: &str, password: &str) -> String {
     format!("WIFI:T:ADB;S:{name};P:{password};;")
 }
 
 fn new_name() -> String {
-    format!("adb-gui-{}", random_text(8))
+    format!("{NAME_PREFIX}{}", random_text(8))
 }
 
 fn new_password() -> String {
