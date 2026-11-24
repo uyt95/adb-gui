@@ -263,7 +263,7 @@ impl AddDialog {
                     }
                     Err(error) => {
                         let Some(this) = this else {
-                            state.show_error(&l10n::error_message(&error));
+                            state.show_error(&error);
                             return;
                         };
                         this.pairing.set(false);
